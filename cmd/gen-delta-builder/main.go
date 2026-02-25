@@ -1,0 +1,47 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/go-digitaltwin/v2-experiment/cmd/gen-delta-builder/internal/deltagen"
+)
+
+func main() {
+	typeName := flag.String("type", "", "target struct name (required)")
+	key := flag.String("key", "", "comma-separated primary key field names (required)")
+	flag.Parse()
+
+	if *typeName == "" || *key == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	cfg := deltagen.Config{
+		TypeName: *typeName,
+		Keys:     strings.Split(*key, ","),
+		Dir:      ".",
+	}
+
+	src, err := deltagen.Generate(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gen-delta-builder: %v\n", err)
+		os.Exit(1)
+	}
+
+	outPath := outputPath(*typeName)
+	if err := os.WriteFile(outPath, src, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "gen-delta-builder: writing %s: %v\n", outPath, err)
+		os.Exit(1)
+	}
+}
+
+func outputPath(typeName string) string {
+	if gofile := os.Getenv("GOFILE"); gofile != "" {
+		return strings.TrimSuffix(gofile, filepath.Ext(gofile)) + "_delta.go"
+	}
+	return strings.ToLower(typeName) + "_delta.go"
+}
