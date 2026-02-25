@@ -194,6 +194,7 @@ func emit(w io.Writer, ti TypeInfo) {
 
 	emitTypeAndConstructor(w, ti)
 	emitSetMethods(w, ti)
+	emitClearMethods(w, ti)
 }
 
 func collectImports(ti TypeInfo) []string {
@@ -214,6 +215,16 @@ func emitSetMethods(w io.Writer, ti TypeInfo) {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "// Set%s asserts the [%s.%s] value.\n", f.Name, ti.TypeName, f.Name)
 		fmt.Fprintf(w, "func (d *%s) Set%s(v %s) {}\n", deltaName, f.Name, f.TypeStr)
+	}
+}
+
+func emitClearMethods(w io.Writer, ti TypeInfo) {
+	deltaName := ti.TypeName + "Delta"
+	for _, f := range ti.Properties() {
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "// Clear%s retracts the [%s.%s] value, leaving the field\n", f.Name, ti.TypeName, f.Name)
+		fmt.Fprintln(w, "// undefined.")
+		fmt.Fprintf(w, "func (d *%s) Clear%s() {}\n", deltaName, f.Name)
 	}
 }
 

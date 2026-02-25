@@ -29,3 +29,11 @@ func (d *DeviceDelta) SetName(v string) {}
 
 // SetModel asserts the [Device.Model] value.
 func (d *DeviceDelta) SetModel(v string) {}
+
+// ClearName retracts the [Device.Name] value, leaving the field
+// undefined.
+func (d *DeviceDelta) ClearName() {}
+
+// ClearModel retracts the [Device.Model] value, leaving the field
+// undefined.
+func (d *DeviceDelta) ClearModel() {}

@@ -37,3 +37,11 @@ func (d *ConnectionDelta) SetAddress(v netip.Addr) {}
 
 // SetTags asserts the [Connection.Tags] value.
 func (d *ConnectionDelta) SetTags(v []string) {}
+
+// ClearAddress retracts the [Connection.Address] value, leaving the field
+// undefined.
+func (d *ConnectionDelta) ClearAddress() {}
+
+// ClearTags retracts the [Connection.Tags] value, leaving the field
+// undefined.
+func (d *ConnectionDelta) ClearTags() {}
