@@ -20,3 +20,9 @@ func NewLabelDelta(name string) *LabelDelta {
 
 // Name returns the primary key ([Label.Name]) of the target entity.
 func (d *LabelDelta) Name() string { return d.name }
+
+// Apply merges the delta into the target [Label]. The primary key
+// ([Label.Name]) is always written.
+//
+// Generated with -apply.
+func (d *LabelDelta) Apply(target *Label) {}
