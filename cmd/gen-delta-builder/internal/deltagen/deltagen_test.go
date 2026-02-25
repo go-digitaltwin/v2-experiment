@@ -19,6 +19,7 @@ func TestGenerate(t *testing.T) {
 		dir    string
 		typ    string
 		keys   []string
+		apply  bool
 		golden string
 	}{
 		{
@@ -42,6 +43,30 @@ func TestGenerate(t *testing.T) {
 			keys:   []string{"Name"},
 			golden: "testdata/keyonly/keyonly.golden",
 		},
+		{
+			name:   "simple_apply",
+			dir:    "testdata/simple",
+			typ:    "Device",
+			keys:   []string{"ID"},
+			apply:  true,
+			golden: "testdata/simple/simple_apply.golden",
+		},
+		{
+			name:   "composite_apply",
+			dir:    "testdata/composite",
+			typ:    "Connection",
+			keys:   []string{"TenantID", "Name"},
+			apply:  true,
+			golden: "testdata/composite/composite_apply.golden",
+		},
+		{
+			name:   "keyonly_apply",
+			dir:    "testdata/keyonly",
+			typ:    "Label",
+			keys:   []string{"Name"},
+			apply:  true,
+			golden: "testdata/keyonly/keyonly_apply.golden",
+		},
 	}
 
 	for _, tt := range tests {
@@ -50,6 +75,7 @@ func TestGenerate(t *testing.T) {
 				TypeName: tt.typ,
 				Keys:     tt.keys,
 				Dir:      tt.dir,
+				Apply:    tt.apply,
 			}
 			got, err := deltagen.Generate(cfg)
 			if err != nil {
