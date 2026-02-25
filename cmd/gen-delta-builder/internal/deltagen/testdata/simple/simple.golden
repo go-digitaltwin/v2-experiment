@@ -37,3 +37,11 @@ func (d *DeviceDelta) ClearName() {}
 // ClearModel retracts the [Device.Model] value, leaving the field
 // undefined.
 func (d *DeviceDelta) ClearModel() {}
+
+// SkipName reverts the [Device.Name] instruction to the zero-state
+// no-op. Calling SkipName on a zero-value delta is harmless.
+func (d *DeviceDelta) SkipName() {}
+
+// SkipModel reverts the [Device.Model] instruction to the
+// zero-state no-op.
+func (d *DeviceDelta) SkipModel() {}

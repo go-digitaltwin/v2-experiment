@@ -195,6 +195,7 @@ func emit(w io.Writer, ti TypeInfo) {
 	emitTypeAndConstructor(w, ti)
 	emitSetMethods(w, ti)
 	emitClearMethods(w, ti)
+	emitSkipMethods(w, ti)
 }
 
 func collectImports(ti TypeInfo) []string {
@@ -215,6 +216,22 @@ func emitSetMethods(w io.Writer, ti TypeInfo) {
 		fmt.Fprintln(w)
 		fmt.Fprintf(w, "// Set%s asserts the [%s.%s] value.\n", f.Name, ti.TypeName, f.Name)
 		fmt.Fprintf(w, "func (d *%s) Set%s(v %s) {}\n", deltaName, f.Name, f.TypeStr)
+	}
+}
+
+func emitSkipMethods(w io.Writer, ti TypeInfo) {
+	deltaName := ti.TypeName + "Delta"
+	props := ti.Properties()
+	for i, f := range props {
+		fmt.Fprintln(w)
+		if i == 0 {
+			fmt.Fprintf(w, "// Skip%s reverts the [%s.%s] instruction to the zero-state\n", f.Name, ti.TypeName, f.Name)
+			fmt.Fprintf(w, "// no-op. Calling Skip%s on a zero-value delta is harmless.\n", f.Name)
+		} else {
+			fmt.Fprintf(w, "// Skip%s reverts the [%s.%s] instruction to the\n", f.Name, ti.TypeName, f.Name)
+			fmt.Fprintln(w, "// zero-state no-op.")
+		}
+		fmt.Fprintf(w, "func (d *%s) Skip%s() {}\n", deltaName, f.Name)
 	}
 }
 

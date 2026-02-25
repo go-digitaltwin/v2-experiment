@@ -45,3 +45,11 @@ func (d *ConnectionDelta) ClearAddress() {}
 // ClearTags retracts the [Connection.Tags] value, leaving the field
 // undefined.
 func (d *ConnectionDelta) ClearTags() {}
+
+// SkipAddress reverts the [Connection.Address] instruction to the zero-state
+// no-op. Calling SkipAddress on a zero-value delta is harmless.
+func (d *ConnectionDelta) SkipAddress() {}
+
+// SkipTags reverts the [Connection.Tags] instruction to the
+// zero-state no-op.
+func (d *ConnectionDelta) SkipTags() {}
