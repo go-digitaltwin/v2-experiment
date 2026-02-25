@@ -15,6 +15,7 @@ func main() {
 	key := flag.String("key", "", "comma-separated primary key field names (required)")
 	output := flag.String("output", "", "output file path (optional; defaults to ${GOFILE%.go}_delta.go)")
 	input := flag.String("input", ".", "input package directory (optional; defaults to current directory)")
+	apply := flag.Bool("apply", false, "generate Apply method")
 	flag.Parse()
 
 	if *typeName == "" || *key == "" {
@@ -26,6 +27,7 @@ func main() {
 		TypeName: *typeName,
 		Keys:     strings.Split(*key, ","),
 		Dir:      *input,
+		Apply:    *apply,
 	}
 
 	src, err := deltagen.Generate(cfg)
