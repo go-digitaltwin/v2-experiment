@@ -14,6 +14,7 @@ func main() {
 	typeName := flag.String("type", "", "target struct name (required)")
 	key := flag.String("key", "", "comma-separated primary key field names (required)")
 	output := flag.String("output", "", "output file path (optional; defaults to ${GOFILE%.go}_delta.go)")
+	input := flag.String("input", ".", "input package directory (optional; defaults to current directory)")
 	flag.Parse()
 
 	if *typeName == "" || *key == "" {
@@ -24,7 +25,7 @@ func main() {
 	cfg := deltagen.Config{
 		TypeName: *typeName,
 		Keys:     strings.Split(*key, ","),
-		Dir:      ".",
+		Dir:      *input,
 	}
 
 	src, err := deltagen.Generate(cfg)
