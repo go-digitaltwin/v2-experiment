@@ -2,6 +2,10 @@
 
 package composite
 
+import (
+	"net/netip"
+)
+
 // ConnectionDelta builds a partial update instruction for
 // [Connection].
 //
@@ -27,3 +31,9 @@ func (d *ConnectionDelta) TenantID() string { return d.tenantID }
 
 // Name returns the [Connection.Name] component of the primary key.
 func (d *ConnectionDelta) Name() string { return d.name }
+
+// SetAddress asserts the [Connection.Address] value.
+func (d *ConnectionDelta) SetAddress(v netip.Addr) {}
+
+// SetTags asserts the [Connection.Tags] value.
+func (d *ConnectionDelta) SetTags(v []string) {}
