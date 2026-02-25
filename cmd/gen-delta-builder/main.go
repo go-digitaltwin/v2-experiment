@@ -13,6 +13,7 @@ import (
 func main() {
 	typeName := flag.String("type", "", "target struct name (required)")
 	key := flag.String("key", "", "comma-separated primary key field names (required)")
+	output := flag.String("output", "", "output file path (optional; defaults to ${GOFILE%.go}_delta.go)")
 	flag.Parse()
 
 	if *typeName == "" || *key == "" {
@@ -32,14 +33,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	outPath := outputPath(*typeName)
+	outPath := outputPath(*output, *typeName)
 	if err := os.WriteFile(outPath, src, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "gen-delta-builder: writing %s: %v\n", outPath, err)
 		os.Exit(1)
 	}
 }
 
-func outputPath(typeName string) string {
+func outputPath(explicit, typeName string) string {
+	if explicit != "" {
+		return explicit
+	}
 	if gofile := os.Getenv("GOFILE"); gofile != "" {
 		return strings.TrimSuffix(gofile, filepath.Ext(gofile)) + "_delta.go"
 	}
