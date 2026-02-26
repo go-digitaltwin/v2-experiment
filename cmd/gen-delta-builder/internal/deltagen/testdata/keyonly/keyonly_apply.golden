@@ -2,18 +2,16 @@
 
 package keyonly
 
-// LabelDelta builds a partial update instruction for
-// [Label].
+// LabelDelta builds a partial update instruction for [Label].
 //
-// Create with [NewLabelDelta] using the entity's primary key
-// ([Label.Name]).
+// Create with [NewLabelDelta] using the entity's primary key ([Label.Name]).
 type LabelDelta struct {
 	name string
 	// contains filtered or unexported fields
 }
 
-// NewLabelDelta returns a delta targeting the [Label]
-// identified by its [Label.Name].
+// NewLabelDelta returns a delta targeting the [Label] identified by its
+// [Label.Name].
 func NewLabelDelta(name string) *LabelDelta {
 	return &LabelDelta{name: name}
 }

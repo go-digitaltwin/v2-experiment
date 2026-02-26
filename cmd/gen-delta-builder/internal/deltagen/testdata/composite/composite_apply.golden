@@ -6,11 +6,10 @@ import (
 	"net/netip"
 )
 
-// ConnectionDelta builds a partial update instruction for
-// [Connection].
+// ConnectionDelta builds a partial update instruction for [Connection].
 //
-// Each property has three builder methods: Set asserts a value, Clear
-// retracts it, and Skip (the zero-state default) leaves it unaffected.
+// Each property has three builder methods: Set asserts a value, Clear retracts
+// it, and Skip (the zero-state default) leaves it unaffected.
 //
 // Create with [NewConnectionDelta] using the entity's primary key
 // ([Connection.TenantID], [Connection.Name]).
@@ -20,8 +19,8 @@ type ConnectionDelta struct {
 	// contains filtered or unexported fields
 }
 
-// NewConnectionDelta returns a delta targeting the [Connection] identified
-// by its composite key ([Connection.TenantID], [Connection.Name]).
+// NewConnectionDelta returns a delta targeting the [Connection] identified by
+// its composite key ([Connection.TenantID], [Connection.Name]).
 func NewConnectionDelta(tenantID string, name string) *ConnectionDelta {
 	return &ConnectionDelta{tenantID: tenantID, name: name}
 }
@@ -42,16 +41,14 @@ func (d *ConnectionDelta) SetTags(v []string) {}
 // undefined.
 func (d *ConnectionDelta) ClearAddress() {}
 
-// ClearTags retracts the [Connection.Tags] value, leaving the field
-// undefined.
+// ClearTags retracts the [Connection.Tags] value, leaving the field undefined.
 func (d *ConnectionDelta) ClearTags() {}
 
 // SkipAddress reverts the [Connection.Address] instruction to the zero-state
 // no-op. Calling SkipAddress on a zero-value delta is harmless.
 func (d *ConnectionDelta) SkipAddress() {}
 
-// SkipTags reverts the [Connection.Tags] instruction to the
-// zero-state no-op.
+// SkipTags reverts the [Connection.Tags] instruction to the zero-state no-op.
 func (d *ConnectionDelta) SkipTags() {}
 
 // Apply merges the delta into the target [Connection]. For each property
