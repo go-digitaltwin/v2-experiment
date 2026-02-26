@@ -2,21 +2,19 @@
 
 package simple
 
-// DeviceDelta builds a partial update instruction for
-// [Device].
+// DeviceDelta builds a partial update instruction for [Device].
 //
-// Each property has three builder methods: Set asserts a value, Clear
-// retracts it, and Skip (the zero-state default) leaves it unaffected.
+// Each property has three builder methods: Set asserts a value, Clear retracts
+// it, and Skip (the zero-state default) leaves it unaffected.
 //
-// Create with [NewDeviceDelta] using the entity's primary key
-// ([Device.ID]).
+// Create with [NewDeviceDelta] using the entity's primary key ([Device.ID]).
 type DeviceDelta struct {
 	id string
 	// contains filtered or unexported fields
 }
 
-// NewDeviceDelta returns a delta targeting the [Device]
-// identified by its [Device.ID].
+// NewDeviceDelta returns a delta targeting the [Device] identified by its
+// [Device.ID].
 func NewDeviceDelta(id string) *DeviceDelta {
 	return &DeviceDelta{id: id}
 }
@@ -30,18 +28,15 @@ func (d *DeviceDelta) SetName(v string) {}
 // SetModel asserts the [Device.Model] value.
 func (d *DeviceDelta) SetModel(v string) {}
 
-// ClearName retracts the [Device.Name] value, leaving the field
-// undefined.
+// ClearName retracts the [Device.Name] value, leaving the field undefined.
 func (d *DeviceDelta) ClearName() {}
 
-// ClearModel retracts the [Device.Model] value, leaving the field
-// undefined.
+// ClearModel retracts the [Device.Model] value, leaving the field undefined.
 func (d *DeviceDelta) ClearModel() {}
 
-// SkipName reverts the [Device.Name] instruction to the zero-state
-// no-op. Calling SkipName on a zero-value delta is harmless.
+// SkipName reverts the [Device.Name] instruction to the zero-state no-op.
+// Calling SkipName on a zero-value delta is harmless.
 func (d *DeviceDelta) SkipName() {}
 
-// SkipModel reverts the [Device.Model] instruction to the
-// zero-state no-op.
+// SkipModel reverts the [Device.Model] instruction to the zero-state no-op.
 func (d *DeviceDelta) SkipModel() {}
