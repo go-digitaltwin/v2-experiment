@@ -13,6 +13,7 @@ var deltaTemplate string
 
 // templateData carries the resolved values for template rendering.
 type templateData struct {
+	Command    string // full invocation for the generated header
 	PkgName    string
 	TypeName   string
 	DeltaName  string
@@ -37,6 +38,7 @@ func newTemplateData(ti TypeInfo, cfg Config) templateData {
 	}
 
 	return templateData{
+		Command:    cfg.Command,
 		PkgName:    ti.PkgName,
 		TypeName:   ti.TypeName,
 		DeltaName:  ti.TypeName + "Delta",

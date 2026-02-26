@@ -28,6 +28,7 @@ func main() {
 		Keys:     strings.Split(*key, ","),
 		Dir:      *input,
 		Apply:    *apply,
+		Command:  "gen-delta-builder " + strings.Join(os.Args[1:], " "),
 	}
 
 	src, err := deltagen.Generate(cfg)

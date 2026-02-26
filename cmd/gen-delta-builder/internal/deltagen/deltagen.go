@@ -63,6 +63,7 @@ type Config struct {
 	Keys     []string // -key value, split by comma
 	Dir      string   // package directory (from working dir for now)
 	Apply    bool     // -apply flag
+	Command  string   // full invocation for the generated header
 }
 
 // Generate loads the target struct from Dir, classifies its fields, and
