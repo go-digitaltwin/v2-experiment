@@ -1,5 +1,7 @@
 # v2-experiment
 
+[![CI](https://github.com/go-digitaltwin/v2-experiment/actions/workflows/ci.yml/badge.svg)](https://github.com/go-digitaltwin/v2-experiment/actions/workflows/ci.yml)
+
 A digital twin framework for event-driven systems in Go.
 
 **Input at runtime**: domain-specific deltas (partial updates describing
