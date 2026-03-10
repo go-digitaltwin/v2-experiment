@@ -13,3 +13,12 @@ updates:
       prefix: "go.mod"
     labels:
       - dependencies
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "github"
+    labels:
+      - dependencies
