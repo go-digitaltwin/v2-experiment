@@ -49,8 +49,14 @@ jobs:
       - name: Review minor
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
         uses: anthropics/claude-code-action@v1
+        env:
+          GH_REPO: ${{ github.repository }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: dependabot
+          # Git credential errors ("fatal: not in a git directory") appear because
+          # there's no local checkout. These are harmless and ignored by the action.
+          # use_commit_signing: true
           prompt: |
             This is a Dependabot PR for a minor version update.
 
@@ -67,12 +73,21 @@ jobs:
             identifier (e.g. "Reviewed by claude-sonnet-4-20250514").
 
             Use: gh pr review --approve --body "your message"
+          claude_args: >-
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --max-turns 25
 
       - name: Review major
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         uses: anthropics/claude-code-action@v1
+        env:
+          GH_REPO: ${{ github.repository }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: dependabot
+          # Git credential errors ("fatal: not in a git directory") appear because
+          # there's no local checkout. These are harmless and ignored by the action.
+          # use_commit_signing: true
           prompt: |
             This is a Dependabot PR for a MAJOR version update.
 
@@ -99,7 +114,9 @@ jobs:
             Use `gh pr review --comment` to post your analysis and any suggested code changes.
             IMPORTANT: Place all parameters AFTER --comment (e.g., `gh pr review --comment --body "..." <PR_URL>`).
           claude_args: >-
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review --comment:*),Bash(gh pr review -c:*),WebFetch,WebSearch"
             --disallowedTools "Bash(gh pr review --approve:*),Bash(gh pr review -a:*)"
+            --max-turns 50
 
       - name: Auto-merge patch
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
