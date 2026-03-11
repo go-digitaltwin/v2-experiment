@@ -51,3 +51,8 @@ jobs:
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
+
+          # Go tooling allows Claude to run tests, build, format, and analyze Go code
+          # See https://docs.claude.com/en/docs/claude-code/cli-reference for available options
+          claude_args: |
+            --allowedTools "Bash(go:*)"
