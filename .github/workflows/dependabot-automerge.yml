@@ -9,7 +9,7 @@
 # Dependabot PRs include lengthy changelogs and compatibility notes.
 # The merge step overrides the body to keep commit messages clean.
 
-name: "🤖 Dependabot"
+name: "🤖 ClauDependabot"
 
 on:
   pull_request:
@@ -27,7 +27,7 @@ permissions:
   id-token: write # Required for Claude to generate GitHub app tokens
 
 jobs:
-  automerge:
+  mergeview:
     name: Review & Merge
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
@@ -127,5 +127,16 @@ jobs:
           BODY: |
             This patch update was merged automatically since patch-level
             changes carry minimal risk of breaking existing functionality.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+      - name: Auto-merge minor
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This minor update was reviewed by Claude before merging.
 
             Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
