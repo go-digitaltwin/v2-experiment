@@ -60,19 +60,15 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout for review
+        uses: actions/checkout@v6
+
       - name: Review minor
         if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
         uses: anthropics/claude-code-action@v1
-        env:
-          GH_REPO: ${{ github.repository }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
-          # Git credential errors ("fatal: not in a git directory") appear because
-          # there's no local checkout. These are harmless and ignored by the action.
-          # Enabling commit signing avoids the error but enables Claude to commit
-          # via MCP, which we don't want here.
-          # use_commit_signing: true
           prompt: |
             This is a Dependabot PR for a minor version update.
 
@@ -81,8 +77,7 @@ jobs:
             Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
             PR: ${{ github.event.pull_request.html_url }}
 
-            There is no local checkout of the repository. Use `gh pr diff` and
-            `gh pr view` to review the changes.
+            Use `gh pr diff` and `gh pr view` to review the changes.
 
             Minor updates should be backwards-compatible. If the changes look
             reasonable, approve the PR with a message that includes your model
@@ -96,16 +91,9 @@ jobs:
       - name: Review major
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         uses: anthropics/claude-code-action@v1
-        env:
-          GH_REPO: ${{ github.repository }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
-          # Git credential errors ("fatal: not in a git directory") appear because
-          # there's no local checkout. These are harmless and ignored by the action.
-          # Enabling commit signing avoids the error but enables Claude to commit
-          # via MCP, which we don't want here.
-          # use_commit_signing: true
           prompt: |
             This is a Dependabot PR for a MAJOR version update.
 
@@ -114,8 +102,7 @@ jobs:
             Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
             PR: ${{ github.event.pull_request.html_url }}
 
-            There is no local checkout of the repository. Use `gh pr diff` and
-            `gh pr view` to review the changes.
+            Use `gh pr diff` and `gh pr view` to review the changes.
 
             Major updates may have breaking changes. Please:
 
