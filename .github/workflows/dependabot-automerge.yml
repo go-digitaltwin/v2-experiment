@@ -1,7 +1,7 @@
 # Dependabot Auto-merge Workflow
 #
-# Patch updates auto-merge after CI passes. Minor and major updates
-# require human review until LLM-assisted review is available (#5).
+# Patch updates auto-merge after CI passes. Minor updates are reviewed
+# by Claude before auto-merging. Major updates require human review.
 #
 # Squash commits default to using the PR description as body, but
 # Dependabot PRs include lengthy changelogs and compatibility notes.
@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write # Required by: gh pr merge --auto
   pull-requests: write # Required by: gh pr review --approve
+  id-token: write # Required for Claude to generate GitHub app tokens
 
 jobs:
   automerge:
@@ -43,10 +44,27 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # TODO(#5): Review minor updates with Claude before auto-merging.
-      # Once the Claude Code workflow lands, add a step here that uses
-      # claude-code-action to review the diff and approve if acceptable,
-      # followed by an auto-merge step gated on the same condition.
+      - name: Review minor
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This is a Dependabot PR for a minor version update.
+
+            Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+            Dependency: ${{ steps.metadata.outputs.dependency-names }}
+            Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+            PR: ${{ github.event.pull_request.html_url }}
+
+            There is no local checkout of the repository. Use `gh pr diff` and
+            `gh pr view` to review the changes.
+
+            Minor updates should be backwards-compatible. If the changes look
+            reasonable, approve the PR with a message that includes your model
+            identifier (e.g. "Reviewed by claude-sonnet-4-20250514").
+
+            Use: gh pr review --approve --body "your message"
 
       # TODO(#5): Analyze major updates with Claude, require human merge.
       # Major updates may contain breaking changes. The planned step uses
