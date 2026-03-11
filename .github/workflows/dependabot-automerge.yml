@@ -1,7 +1,9 @@
 # Dependabot Auto-merge Workflow
 #
-# Patch updates auto-merge after CI passes. Minor updates are reviewed
-# by Claude before auto-merging. Major updates require human review.
+# Patch and minor updates enable auto-merge; major updates require human merge:
+# - Patch: auto-approved (low-risk)
+# - Minor: Claude reviews, approves if acceptable
+# - Major: Claude advises, human must approve and merge
 #
 # Squash commits default to using the PR description as body, but
 # Dependabot PRs include lengthy changelogs and compatibility notes.
@@ -66,11 +68,38 @@ jobs:
 
             Use: gh pr review --approve --body "your message"
 
-      # TODO(#5): Analyze major updates with Claude, require human merge.
-      # Major updates may contain breaking changes. The planned step uses
-      # claude-code-action to post a review comment with migration notes
-      # and risk analysis, but does not approve or merge. A human reads
-      # the analysis and decides whether to proceed.
+      - name: Review major
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            This is a Dependabot PR for a MAJOR version update.
+
+            Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+            Dependency: ${{ steps.metadata.outputs.dependency-names }}
+            Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+            PR: ${{ github.event.pull_request.html_url }}
+
+            There is no local checkout of the repository. Use `gh pr diff` and
+            `gh pr view` to review the changes.
+
+            Major updates may have breaking changes. Please:
+
+            1. Fetch the dependency's release page and CHANGELOG to understand what changed
+            2. Check the README for migration guides
+            3. Review the codebase for usages of this dependency
+            4. If changes are needed, comment on the PR with suggested fixes
+
+            For github_actions ecosystem specifically:
+            - Review the workflow files in .github/workflows/ that use this action
+            - Check for deprecated inputs, outputs, or runner requirements
+
+            Do NOT approve, merge, or push commits to this PR.
+            Use `gh pr review --comment` to post your analysis and any suggested code changes.
+            IMPORTANT: Place all parameters AFTER --comment (e.g., `gh pr review --comment --body "..." <PR_URL>`).
+          claude_args: >-
+            --disallowedTools "Bash(gh pr review --approve:*),Bash(gh pr review -a:*)"
 
       - name: Auto-merge patch
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
