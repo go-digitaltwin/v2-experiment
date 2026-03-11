@@ -37,6 +37,7 @@ jobs:
       pull-requests: write # Needed for Claude to create and update pull requests
       issues: write # Needed for Claude to create and update issues
       id-token: write
+      actions: read # Required for Claude to read CI results on PRs
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -46,3 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
