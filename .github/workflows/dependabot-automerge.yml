@@ -11,6 +11,7 @@ name: "🤖 Dependabot"
 
 on:
   pull_request:
+    branches: [main]
     # Path filter avoids creating workflow runs for unrelated PRs while
     # still catching all Dependabot updates (Go modules and Actions).
     paths:
