@@ -5,17 +5,31 @@
 # - Minor: Claude reviews, approves if acceptable
 # - Major: Claude advises, human must approve and merge
 #
-# Squash commits default to using the PR description as body, but
-# Dependabot PRs include lengthy changelogs and compatibility notes.
-# The merge step overrides the body to keep commit messages clean.
+#   ┌────────────────────────────────────────────────────────────────────┐
+#   │                         Review & Merge                             │
+#   ├────────────────────────────────────────────────────────────────────┤
+#   │ 1. Fetch metadata                                                  │
+#   │ 2. Auto-approve patch ──────────────────────> 5. Auto-merge patch  │
+#   │ 3. Claude review minor ─────────────────────> 6. Auto-merge minor  │
+#   │ 4. Claude review major ─────────────────────> (human merge)        │
+#   └────────────────────────────────────────────────────────────────────┘
+#
+# Squash commits default to using the PR description as body, but Dependabot
+# PRs include lengthy changelogs and compatibility notes. Each step overrides
+# the body to keep commit messages clean.
 
 name: "🤖 ClauDependabot"
 
 on:
+  # Using pull_request (not pull_request_target) because the OIDC approach for
+  # GitHub app impersonation does not appear to work with Dependabot PRs.
+  # See: https://github.com/anthropics/claude-code-action/issues/713
+  #
+  # This means Claude jobs will fail if Dependabot updates this file itself,
+  # but we've minimized actions here to reduce that risk.
   pull_request:
-    branches: [main]
-    # Path filter avoids creating workflow runs for unrelated PRs while
-    # still catching all Dependabot updates (Go modules and Actions).
+    # Path filter avoids creating workflow runs for unrelated PRs while still
+    # catching all Dependabot updates (Go modules and GitHub Actions).
     paths:
       - "go.mod"
       - "go.sum"
