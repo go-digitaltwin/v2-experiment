@@ -1,0 +1,192 @@
+# Dependabot Auto-merge Workflow
+#
+# All bump levels enable auto-merge; major updates require human approval:
+# - Patch: auto-approved (low-risk)
+# - Minor: Claude reviews, approves if acceptable
+# - Major: Claude advises, human must approve; merge job cleans up the commit
+#
+#             ┌────────────────────────────┬───────────────┐
+#             │          Review            │     Merge     │
+#             ├────────────────────────────┼───────────────┤
+#   patch ────┤ approve ─────────────────┐ │               │
+#   minor ────┤ Claude review ── approve ┼─┼─ squash-merge │
+#   major ────┤ Claude analysis ── human ┘ │               │
+#             └────────────────────────────┴───────────────┘
+#
+# Squash commits default to using the PR description as body, but Dependabot
+# PRs include lengthy changelogs and compatibility notes. Each step overrides
+# the body to keep commit messages clean.
+
+name: "🤖 ClauDependabot"
+
+on:
+  # Using pull_request (not pull_request_target) because the OIDC approach for
+  # GitHub app impersonation does not appear to work with Dependabot PRs.
+  # See: https://github.com/anthropics/claude-code-action/issues/713
+  #
+  # This means Claude jobs will fail if Dependabot updates this file itself,
+  # but we've minimized actions here to reduce that risk.
+  pull_request:
+    # Path filter avoids creating workflow runs for unrelated PRs while still
+    # catching all Dependabot updates (Go modules and GitHub Actions).
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/**"
+
+jobs:
+  review:
+    name: Review
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      pull-requests: write # Required by: gh pr review --approve
+      id-token: write # Required for Claude to generate GitHub app tokens
+      contents: read # Required by: actions/checkout
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          compat-lookup: true
+
+      - name: Approve patch
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr review --approve -b "Patch update — auto-approved" "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout for review
+        uses: actions/checkout@v6
+        with:
+          # The review job grants no write scopes to contents, but
+          # persist-credentials: false ensures the Claude agent cannot
+          # use the automatic GITHUB_TOKEN to push even if permissions
+          # change later.
+          persist-credentials: false
+
+      - name: Review minor
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: dependabot
+          prompt: |
+            This is a Dependabot PR for a minor version update.
+
+            Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+            Dependency: ${{ steps.metadata.outputs.dependency-names }}
+            Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+            PR: ${{ github.event.pull_request.html_url }}
+
+            Use `gh pr diff` and `gh pr view` to review the changes.
+
+            Minor updates should be backwards-compatible. However, for v0.x
+            dependencies, minor bumps may contain breaking changes per semver.
+            Review those with extra caution.
+
+            If the changes look reasonable, approve the PR with a message that
+            includes your model identifier (e.g. "Reviewed by claude-sonnet-4-20250514").
+
+            Use: gh pr review --approve --body "your message"
+          claude_args: |
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
+            --allowedTools "Bash(go:*),WebFetch,WebSearch"
+            --max-turns 25
+
+      - name: Review major
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: dependabot
+          prompt: |
+            This is a Dependabot PR for a MAJOR version update.
+
+            Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}
+            Dependency: ${{ steps.metadata.outputs.dependency-names }}
+            Update: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}
+            PR: ${{ github.event.pull_request.html_url }}
+
+            Use `gh pr diff` and `gh pr view` to review the changes.
+
+            Major updates may have breaking changes. Please:
+
+            1. Fetch the dependency's release page and CHANGELOG to understand what changed
+            2. Check the README for migration guides
+            3. Review the codebase for usages of this dependency
+            4. If changes are needed, comment on the PR with suggested fixes
+
+            For github_actions ecosystem specifically:
+            - Review the workflow files in .github/workflows/ that use this action
+            - Check for deprecated inputs, outputs, or runner requirements
+
+            Do NOT approve, merge, or push commits to this PR.
+            Use `gh pr review --comment` to post your analysis and any suggested code changes.
+            IMPORTANT: Place all parameters AFTER --comment (e.g., `gh pr review --comment --body "..." <PR_URL>`).
+          claude_args: |
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review --comment:*),Bash(gh pr review -c:*)"
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
+            --allowedTools "Bash(go:*),WebFetch,WebSearch"
+            --disallowedTools "Bash(gh pr review --approve:*),Bash(gh pr review -a:*)"
+            --max-turns 50
+
+  merge:
+    name: Merge
+    runs-on: ubuntu-slim
+    needs: review
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write # Required by: gh pr merge --auto
+      pull-requests: write # Required by: gh pr merge --auto
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          compat-lookup: true
+
+      - name: Auto-merge patch
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This patch update was merged automatically since patch-level
+            changes carry minimal risk of breaking existing functionality.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+            Auto-merged-by: ClauDependabot
+
+      - name: Auto-merge minor
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This minor update was reviewed by Claude before merging.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+            Auto-merged-by: ClauDependabot
+
+      - name: Auto-merge major
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This major update was reviewed by Claude and approved by a human
+            before merging.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+            Auto-merged-by: ClauDependabot
