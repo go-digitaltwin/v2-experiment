@@ -1,19 +1,17 @@
 # Dependabot Auto-merge Workflow
 #
-# Patch and minor updates enable auto-merge; major updates require human merge:
+# All bump levels enable auto-merge; major updates require human approval:
 # - Patch: auto-approved (low-risk)
 # - Minor: Claude reviews, approves if acceptable
-# - Major: Claude advises, human must approve and merge
+# - Major: Claude advises, human must approve; merge job cleans up the commit
 #
-#   ┌─────────────────────────┐    ┌────────────────────────┐
-#   │         Review          │    │         Merge          │
-#   ├─────────────────────────┤    ├────────────────────────┤
-#   │ 1. Fetch metadata       │    │ 1. Fetch metadata      │
-#   │ 2. Auto-approve patch   │    │ 2. Auto-merge patch    │
-#   │ 3. Checkout for review  │    │ 3. Auto-merge minor    │
-#   │ 4. Claude review minor  │    └────────────────────────┘
-#   │ 5. Claude review major  │
-#   └─────────────────────────┘
+#             ┌────────────────────────────┬───────────────┐
+#             │          Review            │     Merge     │
+#             ├────────────────────────────┼───────────────┤
+#   patch ────┤ approve ─────────────────┐ │               │
+#   minor ────┤ Claude review ── approve ┼─┼─ squash-merge │
+#   major ────┤ Claude analysis ── human ┘ │               │
+#             └────────────────────────────┴───────────────┘
 #
 # Squash commits default to using the PR description as body, but Dependabot
 # PRs include lengthy changelogs and compatibility notes. Each step overrides
@@ -63,6 +61,10 @@ jobs:
       - name: Checkout for review
         uses: actions/checkout@v6
         with:
+          # The review job grants no write scopes to contents, but
+          # persist-credentials: false ensures the Claude agent cannot
+          # use the automatic GITHUB_TOKEN to push even if permissions
+          # change later.
           persist-credentials: false
 
       - name: Review minor
@@ -168,5 +170,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BODY: |
             This minor update was reviewed by Claude before merging.
+
+            Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
+
+      - name: Auto-merge major
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: gh pr merge --auto --squash "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BODY: |
+            This major update was reviewed by Claude and approved by a human
+            before merging.
 
             Compatibility score: ${{ steps.metadata.outputs.compatibility-score }}%
