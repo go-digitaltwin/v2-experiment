@@ -73,6 +73,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
+          display_report: true
           prompt: |
             This is a Dependabot PR for a minor version update.
 
@@ -104,6 +105,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
+          display_report: true
           prompt: |
             This is a Dependabot PR for a MAJOR version update.
 
