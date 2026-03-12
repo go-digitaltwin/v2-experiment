@@ -5,14 +5,15 @@
 # - Minor: Claude reviews, approves if acceptable
 # - Major: Claude advises, human must approve and merge
 #
-#   ┌────────────────────────────────────────────────────────────────────┐
-#   │                         Review & Merge                             │
-#   ├────────────────────────────────────────────────────────────────────┤
-#   │ 1. Fetch metadata                                                  │
-#   │ 2. Auto-approve patch ──────────────────────> 5. Auto-merge patch  │
-#   │ 3. Claude review minor ─────────────────────> 6. Auto-merge minor  │
-#   │ 4. Claude review major ─────────────────────> (human merge)        │
-#   └────────────────────────────────────────────────────────────────────┘
+#   ┌─────────────────────────┐    ┌────────────────────────┐
+#   │         Review          │    │         Merge          │
+#   ├─────────────────────────┤    ├────────────────────────┤
+#   │ 1. Fetch metadata       │    │ 1. Fetch metadata      │
+#   │ 2. Auto-approve patch   │    │ 2. Auto-merge patch    │
+#   │ 3. Checkout for review  │    │ 3. Auto-merge minor    │
+#   │ 4. Claude review minor  │    └────────────────────────┘
+#   │ 5. Claude review major  │
+#   └─────────────────────────┘
 #
 # Squash commits default to using the PR description as body, but Dependabot
 # PRs include lengthy changelogs and compatibility notes. Each step overrides
@@ -35,16 +36,15 @@ on:
       - "go.sum"
       - ".github/workflows/**"
 
-permissions:
-  contents: write # Required by: gh pr merge --auto
-  pull-requests: write # Required by: gh pr review --approve
-  id-token: write # Required for Claude to generate GitHub app tokens
-
 jobs:
-  mergeview:
-    name: Review & Merge
+  review:
+    name: Review
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      pull-requests: write # Required by: gh pr review --approve
+      id-token: write # Required for Claude to generate GitHub app tokens
+      contents: read # Required by: actions/checkout
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
@@ -131,6 +131,22 @@ jobs:
             --allowedTools "Bash(go:*),WebFetch,WebSearch"
             --disallowedTools "Bash(gh pr review --approve:*),Bash(gh pr review -a:*)"
             --max-turns 50
+
+  merge:
+    name: Merge
+    runs-on: ubuntu-latest
+    needs: review
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write # Required by: gh pr merge --auto
+      pull-requests: write # Required by: gh pr merge --auto
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          compat-lookup: true
 
       - name: Auto-merge patch
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
