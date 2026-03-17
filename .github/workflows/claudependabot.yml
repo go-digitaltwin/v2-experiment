@@ -16,6 +16,14 @@
 # Squash commits default to using the PR description as body, but Dependabot
 # PRs include lengthy changelogs and compatibility notes. Each step overrides
 # the body to keep commit messages clean.
+#
+# Prompt injection: claude-code-action steps can be susceptible to prompt
+# injection when triggered by untrusted actors (e.g. arbitrary issue
+# commenters). The review job's actor gate restricts execution to the
+# dependabot[bot] actor, which is a trusted first-party automation source.
+# Claude may still fetch external content during analysis (changelogs,
+# release notes), but gating on a trusted actor is considered a sufficient
+# mitigation for the Step Summary rendering surface.
 
 name: "🤖 ClauDependabot"
 
@@ -73,7 +81,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
-          display_report: true
+          display_report: ${{ runner.debug == '1' }}
           prompt: |
             This is a Dependabot PR for a minor version update.
 
@@ -110,7 +118,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
-          display_report: true
+          display_report: ${{ runner.debug == '1' }}
           prompt: |
             This is a Dependabot PR for a MAJOR version update.
 
