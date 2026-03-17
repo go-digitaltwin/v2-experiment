@@ -73,6 +73,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
+          display_report: true
           prompt: |
             This is a Dependabot PR for a minor version update.
 
@@ -83,6 +84,11 @@ jobs:
 
             Use `gh pr diff` and `gh pr view` to review the changes.
 
+            Before reviewing, check whether you have already reviewed this PR
+            by running `gh pr view --json reviews`. If a prior approval from
+            you exists and the diff has not materially changed, skip the review
+            and exit early.
+
             Minor updates should be backwards-compatible. However, for v0.x
             dependencies, minor bumps may contain breaking changes per semver.
             Review those with extra caution.
@@ -92,6 +98,7 @@ jobs:
 
             Use: gh pr review --approve --body "your message"
           claude_args: |
+            --allowedTools "Read,Glob,Grep"
             --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*)"
             --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
             --allowedTools "Bash(go:*),WebFetch,WebSearch"
@@ -103,6 +110,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: dependabot
+          display_report: true
           prompt: |
             This is a Dependabot PR for a MAJOR version update.
 
@@ -112,6 +120,12 @@ jobs:
             PR: ${{ github.event.pull_request.html_url }}
 
             Use `gh pr diff` and `gh pr view` to review the changes.
+
+            Before reviewing, check whether you have already reviewed this PR
+            by running `gh pr view --json reviews`. If a prior review comment
+            from you exists, compare your new analysis against it. If the
+            conclusions are substantially the same, skip posting and exit early.
+            Only post a new review if your analysis has materially changed.
 
             Major updates may have breaking changes. Please:
 
@@ -128,6 +142,7 @@ jobs:
             Use `gh pr review --comment` to post your analysis and any suggested code changes.
             IMPORTANT: Place all parameters AFTER --comment (e.g., `gh pr review --comment --body "..." <PR_URL>`).
           claude_args: |
+            --allowedTools "Read,Glob,Grep"
             --allowedTools "Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review --comment:*),Bash(gh pr review -c:*)"
             --allowedTools "Bash(gh issue:*),Bash(gh search:*),Bash(gh run:*),Bash(gh workflow:*),Bash(gh release:*)"
             --allowedTools "Bash(go:*),WebFetch,WebSearch"
