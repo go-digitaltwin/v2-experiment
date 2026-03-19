@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"go/types"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -119,8 +120,7 @@ func loadType(cfg Config) (TypeInfo, error) {
 		PkgName:  pkg.Name,
 		TypeName: cfg.TypeName,
 	}
-	for i := range st.NumFields() {
-		field := st.Field(i)
+	for field := range st.Fields() {
 		if !field.Exported() {
 			continue
 		}
@@ -139,14 +139,9 @@ func loadType(cfg Config) (TypeInfo, error) {
 
 	// Validate all declared keys were found.
 	for _, k := range cfg.Keys {
-		found := false
-		for _, f := range ti.Fields {
-			if f.Name == k && f.Kind == FieldKey {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.ContainsFunc(ti.Fields, func(f FieldInfo) bool {
+			return f.Name == k && f.Kind == FieldKey
+		}) {
 			return TypeInfo{}, fmt.Errorf("key field %q not found in struct %s", k, cfg.TypeName)
 		}
 	}
