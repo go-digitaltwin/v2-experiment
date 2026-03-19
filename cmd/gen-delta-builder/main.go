@@ -14,7 +14,7 @@ func main() {
 	typeName := flag.String("type", "", "target struct name (required)")
 	key := flag.String("key", "", "comma-separated primary key field names (required)")
 	output := flag.String("output", "", "output file path (optional; defaults to ${GOFILE%.go}_delta.go)")
-	input := flag.String("input", ".", "input package directory (optional; defaults to current directory)")
+	dir := flag.String("dir", ".", "package directory (optional; defaults to current directory)")
 	apply := flag.Bool("apply", false, "generate Apply method")
 	flag.Parse()
 
@@ -26,7 +26,7 @@ func main() {
 	cfg := deltagen.Config{
 		TypeName: *typeName,
 		Keys:     strings.Split(*key, ","),
-		Dir:      *input,
+		Dir:      *dir,
 		Apply:    *apply,
 		Command:  "gen-delta-builder " + strings.Join(os.Args[1:], " "),
 	}

@@ -3,7 +3,7 @@
 //
 // # Usage
 //
-//	gen-delta-builder -type T -key F1[,F2,...] [-apply] [-input dir] [-output path]
+//	gen-delta-builder -type T -key F1[,F2,...] [-apply] [-dir path] [-output path]
 //
 // The generated code targets pkgsite readability: every exported symbol carries
 // a doc comment with cross-references back to the source type. Method bodies
