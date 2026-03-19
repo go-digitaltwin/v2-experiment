@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/go-digitaltwin/v2-experiment/cmd/gen-delta-builder/internal/deltagen"
+	"github.com/go-digitaltwin/v2-experiment/internal/deltagen"
 )
 
 var update = flag.Bool("update", false, "update golden files")
