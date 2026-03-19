@@ -67,5 +67,4 @@ func emit(w io.Writer, ti TypeInfo, cfg Config) {
 	if err := tmpl.Execute(w, data); err != nil {
 		panic(fmt.Sprintf("template execution failed: %v", err))
 	}
-	fmt.Fprintln(w) // trailing newline
 }
