@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/go-digitaltwin/v2-experiment/cmd/gen-delta-builder/internal/deltagen"
+	"github.com/go-digitaltwin/v2-experiment/internal/deltagen"
 )
 
 func main() {
