@@ -10,31 +10,34 @@
 // are stubs; the internal representation is provided by a separate runtime
 // package.
 //
-// # Flag design
+// # Compatibility
 //
-// The current flag set reflects a deliberate balance between fixed output and
-// caller control. Some parts of the generated code are always emitted (the
-// delta struct, constructor, key accessors, and the three per-property methods);
-// others are opt-in (-apply). This balance is not accidental: the fixed core
-// is what every delta builder needs, while -apply demonstrates the opt-in
-// pattern for features that not every entity requires.
+// The generator currently emits a fixed set of symbols for every invocation:
+// the delta struct, constructor, key accessors, and the three per-property
+// methods (Set, Clear, Skip). The -apply flag is the only opt-in; it adds an
+// Apply method for entities with straightforward update semantics.
 //
-// The flag surface is designed to grow in a backwards-compatible direction:
-//
-//   - Required flags can become optional. -key is required today because every
-//     delta builder needs at least one key field. If a future convention
-//     (struct tags, marker interfaces) can infer keys, -key becomes optional
-//     without breaking existing go:generate directives.
+// This surface can evolve without breaking existing go:generate directives
+// because every planned change is additive:
 //
 //   - New opt-in flags follow the -apply pattern. Features like getter
-//     generation or tombstone methods can be added behind new boolean flags
-//     that default to false; existing invocations are unaffected.
+//     generation or tombstone methods appear behind boolean flags that default
+//     to false. Existing directives produce the same output as before.
 //
-//   - Opt-out flags can exclude individual fields. A future -skip flag (or
-//     struct-tag annotation) could suppress generation for specific properties,
-//     letting callers narrow the generated API without touching the source
-//     struct.
+//   - Opt-out flags suppress parts of the fixed output using the -no- prefix
+//     convention (as in git --no-verify, --no-edit). For example, -no-clear
+//     could suppress Clear method generation for callers that don't need
+//     retraction. The default remains to generate everything.
 //
-// Each of these extensions is additive: no existing directive needs to change
-// when a new flag appears.
+//   - Required flags can become optional. -key is required today because every
+//     entity has an identifying key, but if a future convention (struct tags,
+//     marker interfaces) can infer keys, the flag becomes optional without
+//     invalidating directives that still pass it explicitly.
+//
+//   - Struct-tag annotations can narrow generation per field. A tag like
+//     `delta:"-"` could exclude a specific property from the generated API
+//     without requiring flag changes at the call site.
+//
+// In all cases, a directive that works today continues to produce identical
+// output after the generator is extended.
 package main
