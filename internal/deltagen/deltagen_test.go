@@ -80,6 +80,20 @@ func TestGenerate(t *testing.T) {
 			keys:   []string{"ID"},
 			golden: "testdata/coverage/metric.golden",
 		},
+		{
+			name:   "Coverage/Stdlib/Direct",
+			dir:    "testdata/coverage",
+			typ:    "Session",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/session.golden",
+		},
+		{
+			name:   "Coverage/Stdlib/Containers",
+			dir:    "testdata/coverage",
+			typ:    "SessionContainers",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/session_containers.golden",
+		},
 	}
 
 	for _, tt := range tests {
