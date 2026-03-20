@@ -69,6 +69,17 @@ func TestGenerate(t *testing.T) {
 			apply:  true,
 			golden: "testdata/keyonly/keyonly_apply.golden",
 		},
+
+		// Coverage exercises type diversity across the testdata/coverage
+		// package. Each scenario tests a Direct type (plain fields) and a
+		// Containers type (maps, slices, arrays of the same field types).
+		{
+			name:   "Coverage/Builtin/Containers",
+			dir:    "testdata/coverage",
+			typ:    "Metric",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/metric.golden",
+		},
 	}
 
 	for _, tt := range tests {
