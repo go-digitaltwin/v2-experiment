@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"go/types"
+	"maps"
 	"slices"
 	"strings"
 	"unicode"
@@ -174,16 +175,17 @@ func qualifiedType(t types.Type, localPkg *types.Package) (typeStr string, pkgPa
 	}
 }
 
+// collectImports returns the external import paths referenced by any field
+// (keys and properties). Order is non-deterministic; format.Source sorts the
+// import block in the generated output.
 func collectImports(ti TypeInfo) []string {
-	seen := make(map[string]bool)
-	var imports []string
-	for _, f := range ti.Properties() {
-		if f.PkgPath != "" && !seen[f.PkgPath] {
-			seen[f.PkgPath] = true
-			imports = append(imports, f.PkgPath)
+	imports := make(map[string]struct{})
+	for _, f := range ti.Fields {
+		if f.PkgPath != "" {
+			imports[f.PkgPath] = struct{}{}
 		}
 	}
-	return imports
+	return slices.Collect(maps.Keys(imports))
 }
 
 // lowerFirst converts the first character of s to lower case.
