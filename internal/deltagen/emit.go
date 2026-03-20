@@ -62,9 +62,13 @@ var funcMap = template.FuncMap{
 
 var tmpl = template.Must(template.New("delta").Funcs(funcMap).Parse(deltaTemplate))
 
-func emit(w io.Writer, ti TypeInfo, cfg Config) {
+// emit renders the delta template for the given type into w.
+//
+// Panics during template execution are rare: the template engine recovers
+// panics from function calls internally and surfaces them as errors. A raw
+// panic that escapes Execute typically indicates a nil receiver or a bug in the
+// template engine, not a data-evaluation failure.
+func emit(w io.Writer, ti TypeInfo, cfg Config) error {
 	data := newTemplateData(ti, cfg)
-	if err := tmpl.Execute(w, data); err != nil {
-		panic(fmt.Sprintf("template execution failed: %v", err))
-	}
+	return tmpl.Execute(w, data)
 }

@@ -76,7 +76,9 @@ func Generate(cfg Config) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	emit(&buf, ti, cfg)
+	if err := emit(&buf, ti, cfg); err != nil {
+		return nil, fmt.Errorf("executing template: %w", err)
+	}
 
 	return format.Source(buf.Bytes())
 }
