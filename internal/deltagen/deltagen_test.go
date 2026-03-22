@@ -136,6 +136,20 @@ func TestGenerate(t *testing.T) {
 			keys:   []string{"ID"},
 			golden: "testdata/coverage/account_containers.golden",
 		},
+		{
+			name:   "Coverage/InterModule/Direct",
+			dir:    "testdata/coverage",
+			typ:    "Asset",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/asset.golden",
+		},
+		{
+			name:   "Coverage/InterModule/Containers",
+			dir:    "testdata/coverage",
+			typ:    "AssetContainers",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/asset_containers.golden",
+		},
 	}
 
 	for _, tt := range tests {
