@@ -122,6 +122,20 @@ func TestGenerate(t *testing.T) {
 			keys:   []string{"ID"},
 			golden: "testdata/coverage/task_containers.golden",
 		},
+		{
+			name:   "Coverage/IntraModule/Direct",
+			dir:    "testdata/coverage",
+			typ:    "Account",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/account.golden",
+		},
+		{
+			name:   "Coverage/IntraModule/Containers",
+			dir:    "testdata/coverage",
+			typ:    "AccountContainers",
+			keys:   []string{"ID"},
+			golden: "testdata/coverage/account_containers.golden",
+		},
 	}
 
 	for _, tt := range tests {
