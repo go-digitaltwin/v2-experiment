@@ -162,9 +162,20 @@ func qualifiedType(t types.Type, localPkg *types.Package) (typeStr string, pkgPa
 			return obj.Name(), ""
 		}
 		return obj.Pkg().Name() + "." + obj.Name(), obj.Pkg().Path()
+	case *types.Array:
+		elemStr, elemPkg := qualifiedType(t.Elem(), localPkg)
+		return fmt.Sprintf("[%d]%s", t.Len(), elemStr), elemPkg
 	case *types.Slice:
 		elemStr, elemPkg := qualifiedType(t.Elem(), localPkg)
 		return "[]" + elemStr, elemPkg
+	case *types.Map:
+		keyStr, keyPkg := qualifiedType(t.Key(), localPkg)
+		valStr, valPkg := qualifiedType(t.Elem(), localPkg)
+		pkg := keyPkg
+		if pkg == "" {
+			pkg = valPkg
+		}
+		return "map[" + keyStr + "]" + valStr, pkg
 	case *types.Pointer:
 		elemStr, elemPkg := qualifiedType(t.Elem(), localPkg)
 		return "*" + elemStr, elemPkg
