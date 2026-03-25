@@ -141,29 +141,75 @@ accommodates this through two mechanisms:
    retracts what has gone stale. A phone-bridged scooter with no telemetry
    between rides simply has its ephemeral properties retracted by timeout.
 
-## What the Network Sees
+## Instrumentation
 
-The observation platform sits at the cellular network layer. It sees data
-sessions, IP assignments, and DNS queries. It does not see app-level events (ride
-start, payment, user account) because those are encrypted end-to-end between the
-scooter's software and its operator's cloud.
+The observation platform does not receive data from a single source. Different
+instrumentation points provide different slices of information, each with its own
+data characteristics, refresh rate, and reliability.
 
-What the platform can observe directly:
+### Vendor Instrument
 
-- **Network layer** (from the cellular infrastructure): IMEI and IMSI when the
-  modem attaches, IP address when a session is established, serving cell identity
-  and signal strength.
-- **DNS queries** when the scooter's software resolves its operator's API domain
-  (e.g., `api.lime.com`, `device.bird.co`).
-- **Application layer** (from intercepted telemetry payloads): device ID, GPS
-  coordinates, speed, battery serial and state of charge, accelerometer status,
-  and the trigger that caused this particular report.
+Operators maintain registries that map physical scooter attributes to fleet
+identifiers. A vendor-specific instrument (an integration with the operator's
+provisioning system, or a tap into their asset management API) provides:
 
-The network layer and application layer are observed independently and correlated
-by the platform. For cellular-connected scooters, the correlation is
-straightforward: the application payload flows through the modem's IP session. For
-phone-bridged scooters, the application payload flows through the rider's phone,
-and the network-layer identity belongs to the phone.
+- **Frame identity**: VIN, hardware generation, manufacture date.
+- **Fleet correlation**: the operator-assigned fleet ID (the one encoded in the QR
+  code and used for manual unlock via the rider's app).
+- **Modem provisioning**: which IMEI is installed in which vehicle, eSIM profile
+  assignments.
+
+This data is stable. It changes on provisioning events (new scooter registered),
+modem replacements, or fleet reassignment (scooter sold between operators). It is
+the source of truth for correlating the physical vehicle (VIN) with the fleet
+identity and the modem (IMEI).
+
+### Network Tap
+
+A tap into the cellular network stack provides real-time access to signaling and
+DNS traffic flowing between scooters and their operator backends. Depending on the
+deployment, this may be a deep packet inspection appliance, a lawful intercept
+interface, or an API exposed by a network function. It provides:
+
+- **Signaling events**: modem attach/detach, IP session establishment, handovers,
+  serving cell identity.
+- **DNS queries**: domain name resolutions that reveal which operator's API the
+  scooter contacts (e.g., `api.lime.com`, `device.bird.co`).
+
+This is a real-time, high-frequency data source anchored on the IMEI. It provides
+the raw material for network-layer identity (IMEI, IMSI, IP) and for
+classification (DNS patterns, IMSI ranges).
+
+### Telemetry Feed
+
+Application-layer telemetry (the structured payloads described in
+[Telemetry Events](#telemetry-events)) does not necessarily come from the same
+network tap. While packet inspection can intercept telemetry in transit, a more
+common arrangement is for the platform to receive telemetry in batch from each
+fleet operator's backend: the operator collects reports from its scooters and
+periodically exports them.
+
+This means telemetry may arrive with different latency and completeness depending
+on the operator's export cadence and data-sharing agreement. Some operators stream
+near-real-time; others provide hourly or daily batches. The platform treats all
+telemetry the same way (as delta assertions keyed on device_id), regardless of how
+it was delivered.
+
+### What Each Instrument Contributes
+
+| Instrument | Data | Refresh | Identity anchor |
+|------------|------|---------|-----------------|
+| **Vendor instrument** | VIN, fleet ID, hardware generation, modem assignment | On provisioning events | VIN (vehicle frame) |
+| **Network tap** | IMEI, IMSI, IP, serving cell, DNS queries | On network events (real-time) | IMEI (modem) |
+| **Telemetry feed** | Device ID, GNSS, speed, battery, accelerometer, access point | Per report (real-time or batched) | device_id (fleet ID or VIN) |
+
+These instruments observe through independent channels. For cellular-connected
+scooters, the platform correlates them: the vendor instrument says "VIN
+`WMX00042` has IMEI `353456789012345`," the network tap sees that IMEI attach to
+the network, and the telemetry feed delivers application payloads keyed on the
+same device. For phone-bridged scooters, only the telemetry feed (relayed through
+the operator's backend) may be available; the vendor instrument provides the
+stable identity that the network layer cannot.
 
 ## Telemetry Events
 
@@ -195,17 +241,31 @@ fields below use standard abbreviations from IoT and vehicle telematics:
 | `battery.temp` | int | Cell temperature in °C |
 | `battery.cycles` | uint32 | Lifetime charge cycle count |
 | `odometer` | float64 | Cumulative trip distance in km |
-| `cell.mcc` | uint16 | Mobile Country Code of the serving cell |
-| `cell.mnc` | uint16 | Mobile Network Code |
-| `cell.cid` | uint32 | Cell ID |
-| `cell.rsrp` | int | Reference Signal Received Power in dBm |
+| `access` | object | Current point of attachment (see below) |
 | `accel.motion` | bool | Accelerometer motion detection flag |
 | `accel.tilt` | float64 | Tilt angle in degrees (0 = upright, 90 = on its side) |
 
-Not every field is present in every report. The scooter's software omits fields
-it cannot populate (e.g., `gnss.*` when there is no satellite fix) or fields
-irrelevant to the trigger (e.g., `cell.*` may be absent on phone-bridged
-scooters).
+The `access` field describes the scooter's current **point of attachment** to the
+wider network: the intermediate node through which data reaches the operator's
+backend. Its internal structure varies by connectivity type:
+
+- **Cellular** (`"cellular"`): the *serving cell*, the cell tower sector the modem
+  is camped on. Identified by PLMN, tracking area, and cell ID. Includes signal
+  quality (RSRP).
+- **Bluetooth** (`"bluetooth"`): the rider's phone acting as a relay. Identified
+  by a peer identifier. Includes signal quality (RSSI).
+- **Station** (`"station"`): a fixed infrastructure access point, typically WiFi
+  at a docking station. Identified by the AP's address. Includes signal quality
+  (RSSI).
+
+The scooter's software includes the current access point in each telemetry report
+when available. When the point of attachment changes (cell handover, new phone
+pairs, docking station connects) or its properties update meaningfully, a
+dedicated trigger fires (see [Triggers](#triggers)).
+
+Not every field is present in every report. The scooter's software omits fields it
+cannot populate (e.g., `gnss.*` when there is no satellite fix, `access` on
+scooters with no active connectivity metadata).
 
 The `device_id` is the application-layer identity of the scooter. It is
 independent of the IMEI: the IMEI belongs to the modem at the network layer,
@@ -239,7 +299,8 @@ the reporting frequency and the `accel.motion` flag.
 | `impact` | Accelerometer spike exceeds impact threshold (fall or collision) |
 | `battery_swap` | BMS reports a different battery serial after power cycle |
 | `low_battery` | State of charge drops below configured threshold |
-| `cell_change` | Serving cell changes (handover between towers) |
+| `access_change` | Point of attachment changes (cell handover, new phone, dock connect) |
+| `access_update` | Same point of attachment, signal quality or properties refreshed |
 | `gnss_fix` | GNSS acquires a fix after a period with no fix |
 | `power_on` | Scooter boots after battery insertion or deep sleep wake |
 
@@ -348,14 +409,14 @@ assertions, all keyed on the same IMEI.
 ### Mid-Ride: Cell Handover
 
 The rider crosses into a different cell sector. The network hands over the
-session. The scooter's software detects the cell change:
+session. The scooter's software detects the change in point of attachment:
 
 ```
-{device_id: "WMX00042", ts: "08:22:17Z", seq: 81244, trigger: "cell_change",
+{device_id: "WMX00042", ts: "08:22:17Z", seq: 81244, trigger: "access_change",
  gnss: {lat: 32.0812, lng: 34.7801, fix: "3d", hdop: 0.8, sats: 12},
  speed: 16.4, heading: 12,
  battery: {id: "BAT-2187", soc: 0.91, ..},
- cell: {mcc: 425, mnc: 01, cid: 52417, rsrp: -78},
+ access: {type: "cellular", mcc: 425, mnc: 01, tac: 12401, cid: 52417, rsrp: -78},
  accel: {motion: true, ..}}
 ```
 
@@ -401,7 +462,7 @@ weakens. Eventually, the scooter's software cannot send at all:
 {device_id: "WMX00042", ts: "14:15:42Z", seq: 81793, trigger: "periodic",
  gnss: {fix: "none"},
  battery: {id: "BAT-2187", soc: 0.84, ..},
- cell: {mcc: 425, mnc: 01, cid: 52418, rsrp: -112},
+ access: {type: "cellular", mcc: 425, mnc: 01, tac: 12401, cid: 52418, rsrp: -112},
  accel: {motion: false, tilt: 2.1}}
 
 ... then silence.
