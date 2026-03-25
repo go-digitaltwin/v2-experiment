@@ -504,6 +504,85 @@ timeout. Its stable properties (VIN, IMEI association) remain in the model
 indefinitely as historical record, until explicitly retracted by an
 administrative event.
 
+## Last Reported Values
+
+When the platform retracts a spot value (speed, location, IP) because its TTL
+expired, the value is gone from the live model. But for some properties, the
+stale value is still better than nothing.
+
+Consider a fleet dispatcher looking for scooter `WMX00042`, which went silent 40
+minutes ago. The live model shows no location (retracted after 15 minutes). But
+the *last reported* position, Rabin Square at 14:15, is still the best guess for
+where a technician should start looking. Similarly, the last reported battery
+level (84%) tells the dispatcher whether the scooter is worth retrieving or
+already depleted.
+
+Not every property benefits from this treatment. The table below names properties
+after the domain model, then describes what "last reported" means for each:
+
+| Property | Last reported useful? | Notes |
+|----------|---------------------|-------|
+| **GNSS fix** | Yes | The scooter's GPS position (lat, lng, altitude, precision). This is the primary geolocation source. A 40-minute-old fix is still the best starting point for a field technician searching for a silent scooter. |
+| **Serving cell** | Yes | The modem's serving cell (PLMN, tracking area, cell ID, signal strength). Provides a coarse geolocation estimate when GNSS is unavailable. But the last reported serving cell is not the only source of coarse position; see below. |
+| **Battery** | Moderate | The full BMS reading (serial, SoC, voltage, temperature, cycles). Helps prioritize which scooters need attention, but a stale level may be outdated by a swap or charging event the platform missed. |
+| **Speed** | No | Stale speed is misleading; you care about current or nothing. |
+| **InRide** | No | Stale ride status is unreliable. |
+| **IP** | No | Stale IP is likely reassigned to another device. |
+
+Note that the high-value properties (GNSS fix, serving cell, battery) are wide:
+they are structured objects with multiple fields, not scalars. "Last reported GNSS
+fix" means the entire `gnss` struct from the most recent telemetry report that
+had a valid fix, including its precision metadata (`hdop`, `sats`, `fix`).
+
+### Geolocation as a Derived View
+
+The properties above live in the domain model as-is (GNSS fix on the vehicle,
+serving cell on the modem). But fleet operations often want a single answer:
+"where is this scooter?" That answer, a *geolocation*, is derived from whichever
+source is available, in rough priority order:
+
+1. **GNSS fix** — highest precision (meters), from the scooter's GPS receiver.
+2. **Serving cell** — coarse (hundreds of meters to kilometers), from the modem's
+   last reported cell attachment or from the rider's phone during a BLE-bridged
+   ride.
+3. **Signaling triangulation** — moderate precision, derived from network
+   signaling associated with the IMSI (e.g., timing advance, neighboring cell
+   measurements).
+
+Each of these sources has different precision, freshness, and availability. The
+platform could maintain a composite "best available geolocation" that selects the
+best source, or leave the fusion to downstream consumers querying the individual
+properties. This is a design question for implementation.
+
+### How to Provide Last Reported Values
+
+Three approaches, each with different trade-offs:
+
+**Separate entity.** A dedicated entity type (e.g., a "last reported position"
+keyed on VIN) that is asserted alongside the spot value but is not subject to the
+same TTL. It carries its own timestamp ("as of when?") and is only overwritten by
+the next valid observation, never retracted by timeout. Clean separation, but
+doubles the number of entities for each property that needs it.
+
+**Additional fields on the same entity.** The Vehicle carries both `Location`
+(current, retractable) and `LastReportedLocation` (persistent until next
+observation). Simpler than a separate entity, but the two fields have different
+retraction semantics on the same struct, which complicates the delta model.
+Asserting a new location must update both fields; retracting by timeout must
+clear only the current one.
+
+**Analytics tier only.** The silver Parquet baseline already holds the latest
+snapshot per entity. "Last reported location" is a query: find the most recent
+snapshot where location was non-null. This requires no additional live entities
+and no Go struct changes. The trade-off is latency: the answer is only as fresh
+as the last silver rebuild, and consumers must query Parquet rather than subscribe
+to a live NATS stream.
+
+The right approach may vary by property. Geolocation, the highest-value case,
+could justify a live entity. Battery level, with moderate value and higher risk of being
+outdated, may be fine as an analytics query. The decision is deferred to
+implementation.
+
 ## Competing Knowledge
 
 Not everything the platform knows is certain. When two classifiers assert
