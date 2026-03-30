@@ -16,14 +16,16 @@ package fleet
 // telemetry goes silent beyond a configured TTL; stable associations persist
 // as historical record.
 type Vehicle struct {
-	VIN         string  // Primary key. Frame identity stamped at manufacture.
-	Speed       float64 // Ground speed in km/h, derived from GNSS.
-	Heading     float64 // Course over ground in degrees, 0-360.
-	GNSS        GNSS    // Satellite fix from the scooter's GPS receiver.
-	InRide      bool    // Whether a ride is in progress (platform-inferred from telemetry pattern).
-	Odometer    float64 // Cumulative trip distance in km.
-	AccelMotion bool    // Accelerometer motion-detection flag.
-	AccelTilt   float64 // Tilt angle in degrees (0 = upright, 90 = on its side).
+	VIN           string  // Primary key. Frame identity stamped at manufacture.
+	ModemIMEI     string  // Foreign key → [radio.Modem]. Which cellular modem is installed.
+	BatterySerial string  // Foreign key → [Battery]. Which battery pack is installed.
+	Speed         float64 // Ground speed in km/h, derived from GNSS.
+	Heading       float64 // Course over ground in degrees, 0-360.
+	GNSS          GNSS    // Satellite fix from the scooter's GPS receiver.
+	InRide        bool    // Whether a ride is in progress (platform-inferred from telemetry pattern).
+	Odometer      float64 // Cumulative trip distance in km.
+	AccelMotion   bool    // Accelerometer motion-detection flag.
+	AccelTilt     float64 // Tilt angle in degrees (0 = upright, 90 = on its side).
 }
 
 // GNSS holds a satellite fix from the scooter's GPS receiver.
