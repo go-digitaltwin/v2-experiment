@@ -8,6 +8,8 @@
 // fleet management systems.
 package fleet
 
+import "net/netip"
+
 // Vehicle is an electric scooter identified by its frame-stamped VIN.
 //
 // The platform observes vehicles through application-layer telemetry: periodic
@@ -26,6 +28,7 @@ type Vehicle struct {
 	Odometer      float64 // Cumulative trip distance in km.
 	AccelMotion   bool    // Accelerometer motion-detection flag.
 	AccelTilt     float64 // Tilt angle in degrees (0 = upright, 90 = on its side).
+	Access        Access  // Current point of attachment to the wider network.
 }
 
 // GNSS holds a satellite fix from the scooter's GPS receiver.
@@ -47,4 +50,34 @@ const (
 	FixNone = "none"
 	Fix2D   = "2d"
 	Fix3D   = "3d"
+)
+
+// Access describes a scooter's current point of attachment to the wider
+// network: the interface through which telemetry reaches the operator's
+// backend.
+//
+// The connectivity model varies by operator and hardware generation. A
+// scooter with a built-in cellular modem maintains a persistent data session
+// even when idle; a phone-bridged scooter communicates only during rides
+// through the rider's phone; a docked scooter uploads buffered telemetry
+// over station WiFi.
+//
+// The Type field selects the variant; fields belonging to other variants are
+// at their zero values.
+type Access struct {
+	Type  string     // Connectivity variant: "cellular", "bluetooth", or "station".
+	IP    netip.Addr // Cellular: current data-session IP.
+	IMEI  string     // Cellular: modem IMEI, if the firmware queries the AT interface.
+	EID   string     // Cellular: eUICC chip identity (optional).
+	ICCID string     // Cellular: active eSIM profile (optional).
+	IMSI  string     // Cellular: subscriber identity (optional).
+	BLE   string     // Bluetooth: rider's phone BLE device name (Local Name).
+	BSSID string     // Station: WiFi BSSID or operator-assigned dock ID.
+}
+
+// Access type constants for [Access.Type].
+const (
+	AccessCellular  = "cellular"
+	AccessBluetooth = "bluetooth"
+	AccessStation   = "station"
 )
