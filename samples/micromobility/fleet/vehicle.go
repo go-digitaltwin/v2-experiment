@@ -56,6 +56,15 @@ const (
 // network: the interface through which telemetry reaches the operator's
 // backend.
 //
+// These fields are self-reported by the scooter's application software:
+// the IP is read from the OS network stack, and the modem identifiers are
+// queried via the AT command interface when the firmware supports it.
+// Access values are confirmatory, not authoritative: the network tap's
+// view of the same modem ([radio.Modem]) is the source of truth for
+// network-layer identity. The two observations arrive through independent
+// channels and may disagree temporarily (e.g., after an IP change that the
+// network tap sees before the next telemetry beacon).
+//
 // The connectivity model varies by operator and hardware generation. A
 // scooter with a built-in cellular modem maintains a persistent data session
 // even when idle; a phone-bridged scooter communicates only during rides
@@ -66,11 +75,9 @@ const (
 // at their zero values.
 type Access struct {
 	Type  string     // Connectivity variant: "cellular", "bluetooth", or "station".
-	IP    netip.Addr // Cellular: current data-session IP.
+	IP    netip.Addr // Cellular: current data-session IP from the OS network stack.
 	IMEI  string     // Cellular: modem IMEI, if the firmware queries the AT interface.
-	EID   string     // Cellular: eUICC chip identity (optional).
-	ICCID string     // Cellular: active eSIM profile (optional).
-	IMSI  string     // Cellular: subscriber identity (optional).
+	IMSI  string     // Cellular: subscriber identity, if available via AT+CIMI or equivalent.
 	BLE   string     // Bluetooth: rider's phone BLE device name (Local Name).
 	BSSID string     // Station: WiFi BSSID or operator-assigned dock ID.
 }

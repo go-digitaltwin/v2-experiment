@@ -255,12 +255,13 @@ wider network: the interface through which data reaches the operator's backend.
 Its internal structure varies by connectivity type:
 
 - **Cellular** (`"cellular"`): the built-in modem. The scooter's software can
-  always read the modem's IP address from the OS network stack. Modem identifiers
-  (IMEI, EID, ICCID, IMSI) may be available if the firmware queries the modem's
-  AT command interface; many embedded platforms expose this unprivileged, but it is
-  not guaranteed. The software has no access to radio-level data (serving cell,
-  signal quality, neighbor cells); that information exists only on the network
-  side.
+  always read the modem's IP address from the OS network stack. The IMEI and IMSI
+  may be available if the firmware queries the modem via standard AT commands
+  (`AT+CGSN`, `AT+CIMI`); many embedded platforms expose this unprivileged, but
+  it is not guaranteed. eSIM-level identifiers (EID, ICCID) are generally not
+  accessible through the AT interface. The software has no access to radio-level
+  data (serving cell, signal quality, neighbor cells); that information exists
+  only on the network side.
 - **Bluetooth** (`"bluetooth"`): the rider's phone acting as a relay. Identified
   by the phone's BLE device name (the Local Name advertised during pairing).
 - **Station** (`"station"`): a fixed infrastructure access point, typically WiFi
