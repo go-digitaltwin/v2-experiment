@@ -8,11 +8,15 @@ package fleet
 // scooters over its lifetime. The platform learns about batteries from the
 // BMS readings in each scooter's telemetry payload. A battery-swap event
 // manifests as a sudden change in the reported serial number.
+//
+// The Vehicle→Battery relationship is maintained on [Vehicle] (BatterySerial),
+// not here. If a reverse link (Battery→Vehicle) is ever needed, it will be
+// added as a field with supporting causality mechanisms to keep both sides
+// eventually consistent.
 type Battery struct {
-	Serial     string  // Primary key. BMS serial number printed on the casing.
-	VehicleVIN string  // Foreign key → [Vehicle]. Which scooter this pack is installed in.
-	SoC        float64 // State of charge, 0.0 (empty) to 1.0 (full).
-	Voltage    float64 // Pack voltage in volts.
-	Temp       int     // Cell temperature in degrees Celsius.
-	Cycles     uint32  // Lifetime charge-cycle count reported by the BMS.
+	Serial  string  // Primary key. BMS serial number printed on the casing.
+	SoC     float64 // State of charge, 0.0 (empty) to 1.0 (full).
+	Voltage float64 // Pack voltage in volts.
+	Temp    int     // Cell temperature in degrees Celsius.
+	Cycles  uint32  // Lifetime charge-cycle count reported by the BMS.
 }
