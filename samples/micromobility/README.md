@@ -200,16 +200,21 @@ it was delivered.
 | Instrument | Data | Refresh | Identity anchor |
 |------------|------|---------|-----------------|
 | **Vendor instrument** | VIN, fleet ID, hardware generation, modem assignment | On provisioning events | VIN (vehicle frame) |
-| **Network tap** | IMEI, IMSI, IP, serving cell, DNS queries | On network events (real-time) | IMEI (modem) |
-| **Telemetry feed** | Device ID, GNSS, speed, battery, accelerometer, access point | Per report (real-time or batched) | device_id (fleet ID or VIN) |
+| **Network tap** | IMEI, IMSI, IP, serving cell, signal quality, DNS queries | On network events (real-time) | IMEI (modem) |
+| **Telemetry feed** | Device ID, GNSS, speed, battery, accelerometer, point of attachment (IP, modem IDs if available, BLE device name, dock ID) | Per report (real-time or batched) | device_id (fleet ID or VIN) |
 
-These instruments observe through independent channels. For cellular-connected
-scooters, the platform correlates them: the vendor instrument says "VIN
-`WMX00042` has IMEI `353456789012345`," the network tap sees that IMEI attach to
-the network, and the telemetry feed delivers application payloads keyed on the
-same device. For phone-bridged scooters, only the telemetry feed (relayed through
-the operator's backend) may be available; the vendor instrument provides the
-stable identity that the network layer cannot.
+These instruments observe through independent channels. The IP address is the
+primary bridge between them: the scooter's software always knows its IP (the OS
+provides it), the network tap knows which IMEI holds which IP session, and the
+vendor instrument maps the IMEI to a VIN. For cellular-connected scooters, the
+full correlation chain is: VIN → IMEI (vendor), IMEI → IP (network tap),
+telemetry source IP → device_id (telemetry feed). If the scooter's firmware also
+queries the modem's IMEI via AT commands, the telemetry `access` field provides a
+direct confirmation, but the IP-based correlation does not depend on it.
+
+For phone-bridged scooters, only the telemetry feed (relayed through the
+operator's backend) may be available; the vendor instrument provides the stable
+identity that the network layer cannot.
 
 ## Telemetry Events
 
@@ -246,22 +251,26 @@ fields below use standard abbreviations from IoT and vehicle telematics:
 | `accel.tilt` | float64 | Tilt angle in degrees (0 = upright, 90 = on its side) |
 
 The `access` field describes the scooter's current **point of attachment** to the
-wider network: the intermediate node through which data reaches the operator's
-backend. Its internal structure varies by connectivity type:
+wider network: the interface through which data reaches the operator's backend.
+Its internal structure varies by connectivity type:
 
-- **Cellular** (`"cellular"`): the *serving cell*, the cell tower sector the modem
-  is camped on. Identified by PLMN, tracking area, and cell ID. Includes signal
-  quality (RSRP).
+- **Cellular** (`"cellular"`): the built-in modem. The scooter's software can
+  always read the modem's IP address from the OS network stack. Modem identifiers
+  (IMEI, EID, ICCID, IMSI) may be available if the firmware queries the modem's
+  AT command interface; many embedded platforms expose this unprivileged, but it is
+  not guaranteed. The software has no access to radio-level data (serving cell,
+  signal quality, neighbor cells); that information exists only on the network
+  side.
 - **Bluetooth** (`"bluetooth"`): the rider's phone acting as a relay. Identified
-  by a peer identifier. Includes signal quality (RSSI).
+  by the phone's BLE device name (the Local Name advertised during pairing).
 - **Station** (`"station"`): a fixed infrastructure access point, typically WiFi
-  at a docking station. Identified by the AP's address. Includes signal quality
-  (RSSI).
+  at a docking station. Identified by the station's network identifier (BSSID or
+  operator-assigned dock ID).
 
 The scooter's software includes the current access point in each telemetry report
-when available. When the point of attachment changes (cell handover, new phone
-pairs, docking station connects) or its properties update meaningfully, a
-dedicated trigger fires (see [Triggers](#triggers)).
+when available. When the point of attachment changes in a way the software can
+observe (IP reassignment after a cellular reconnect, new phone pairs, docking
+station connects), a dedicated trigger fires (see [Triggers](#triggers)).
 
 Not every field is present in every report. The scooter's software omits fields it
 cannot populate (e.g., `gnss.*` when there is no satellite fix, `access` on
@@ -299,8 +308,7 @@ the reporting frequency and the `accel.motion` flag.
 | `impact` | Accelerometer spike exceeds impact threshold (fall or collision) |
 | `battery_swap` | BMS reports a different battery serial after power cycle |
 | `low_battery` | State of charge drops below configured threshold |
-| `access_change` | Point of attachment changes (cell handover, new phone, dock connect) |
-| `access_update` | Same point of attachment, signal quality or properties refreshed |
+| `access_update` | Connectivity change that requires immediate attention (new IP after cellular reconnect, new phone pairs via BLE, docking station connects) |
 | `gnss_fix` | GNSS acquires a fix after a period with no fix |
 | `power_on` | Scooter boots after battery insertion or deep sleep wake |
 
@@ -406,23 +414,27 @@ payload-structure classifier recognizes the telemetry encoding as Segway Max G30
 firmware and asserts a model classification. Three classifiers, three independent
 assertions, all keyed on the same IMEI.
 
-### Mid-Ride: Cell Handover
+### Mid-Ride: IP Reassignment
 
-The rider crosses into a different cell sector. The network hands over the
-session. The scooter's software detects the change in point of attachment:
+The rider passes through a coverage gap. The modem loses its data session and
+re-attaches to the network, receiving a new IP. The scooter's software notices
+the IP change on its network interface and fires an access update:
 
 ```
-{device_id: "WMX00042", ts: "08:22:17Z", seq: 81244, trigger: "access_change",
+{device_id: "WMX00042", ts: "08:22:17Z", seq: 81244, trigger: "access_update",
  gnss: {lat: 32.0812, lng: 34.7801, fix: "3d", hdop: 0.8, sats: 12},
  speed: 16.4, heading: 12,
  battery: {id: "BAT-2187", soc: 0.91, ..},
- access: {type: "cellular", mcc: 425, mnc: 01, tac: 12401, cid: 52417, rsrp: -78},
+ access: {type: "cellular", ip: "100.72.31.88", imei: "353456789012345"},
  accel: {motion: true, ..}}
 ```
 
-At the network layer, the IP changes from `100.72.14.201` to `100.72.31.88`.
-The IMEI and IMSI remain the same. The platform asserts the new IP on the Modem
-entity; the old IP is overwritten by the new assertion.
+The scooter knows its new IP (the OS provides it) and its IMEI (queried via AT
+commands on this hardware). It does not know *why* the IP changed: cell handover,
+session timeout, or carrier-side reassignment are all invisible at the
+application layer. At the network layer, the platform's tap sees the same IMEI
+re-attach with the new IP; it correlates the telemetry flowing from `100.72.31.88`
+with the existing Modem entity.
 
 ### Ride Ends
 
@@ -455,18 +467,24 @@ idle heartbeats (speed 0, same location), keeping its properties fresh:
 ```
 
 Now imagine the scooter gets moved into a parking garage by an overzealous
-building manager. The GNSS fix degrades, then disappears. The cellular signal
-weakens. Eventually, the scooter's software cannot send at all:
+building manager. The GNSS fix degrades, then disappears. The scooter's last
+report before silence:
 
 ```
 {device_id: "WMX00042", ts: "14:15:42Z", seq: 81793, trigger: "periodic",
  gnss: {fix: "none"},
  battery: {id: "BAT-2187", soc: 0.84, ..},
- access: {type: "cellular", mcc: 425, mnc: 01, tac: 12401, cid: 52418, rsrp: -112},
  accel: {motion: false, tilt: 2.1}}
 
 ... then silence.
 ```
+
+The scooter's software has no visibility into the cellular signal degradation that
+causes the silence. It simply cannot send. The signal loss is observable from the
+network side: the platform's tap sees the IMSI's radio conditions deteriorate
+(weak RSRP, handover failures) and eventually the session drop. This
+supplementary instrumentation, correlated with the modem's IMSI, provides the
+radio context that the scooter's own telemetry cannot.
 
 After the configured telemetry TTL expires (say, 15 minutes with no beacon), the
 platform retracts Speed, Location, and InRide. The scooter still exists in the
@@ -523,7 +541,7 @@ after the domain model, then describes what "last reported" means for each:
 | Property | Last reported useful? | Notes |
 |----------|---------------------|-------|
 | **GNSS fix** | Yes | The scooter's GPS position (lat, lng, altitude, precision). This is the primary geolocation source. A 40-minute-old fix is still the best starting point for a field technician searching for a silent scooter. |
-| **Serving cell** | Yes | The modem's serving cell (PLMN, tracking area, cell ID, signal strength). Provides a coarse geolocation estimate when GNSS is unavailable. But the last reported serving cell is not the only source of coarse position; see below. |
+| **Serving cell** | Yes | The modem's serving cell (PLMN, tracking area, cell ID, signal strength). Provides a coarse geolocation estimate when GNSS is unavailable. This data comes from the network tap, not from the scooter's telemetry (the scooter software has no access to radio-level data). The last reported serving cell is not the only source of coarse position; see below. |
 | **Battery** | Moderate | The full BMS reading (serial, SoC, voltage, temperature, cycles). Helps prioritize which scooters need attention, but a stale level may be outdated by a swap or charging event the platform missed. |
 | **Speed** | No | Stale speed is misleading; you care about current or nothing. |
 | **InRide** | No | Stale ride status is unreliable. |
@@ -533,6 +551,8 @@ Note that the high-value properties (GNSS fix, serving cell, battery) are wide:
 they are structured objects with multiple fields, not scalars. "Last reported GNSS
 fix" means the entire `gnss` struct from the most recent telemetry report that
 had a valid fix, including its precision metadata (`hdop`, `sats`, `fix`).
+"Last reported serving cell" means the network tap's most recent observation for
+that scooter's modem, a different instrument with its own retention semantics.
 
 ### Geolocation as a Derived View
 
@@ -541,18 +561,23 @@ serving cell on the modem). But fleet operations often want a single answer:
 "where is this scooter?" That answer, a *geolocation*, is derived from whichever
 source is available, in rough priority order:
 
-1. **GNSS fix** — highest precision (meters), from the scooter's GPS receiver.
-2. **Serving cell** — coarse (hundreds of meters to kilometers), from the modem's
-   last reported cell attachment or from the rider's phone during a BLE-bridged
-   ride.
+1. **GNSS fix** — highest precision (meters), from the scooter's GPS receiver via
+   telemetry.
+2. **Serving cell** — coarse (hundreds of meters to kilometers), from the network
+   tap's observation of the modem's cell attachment. During a BLE-bridged ride, the
+   rider's phone may contribute its own serving cell if the operator's app has
+   telephony API permissions; otherwise this field is unavailable for phone-bridged
+   scooters.
 3. **Signaling triangulation** — moderate precision, derived from network
    signaling associated with the IMSI (e.g., timing advance, neighboring cell
-   measurements).
+   measurements). This is exclusively a network-side observation.
 
-Each of these sources has different precision, freshness, and availability. The
-platform could maintain a composite "best available geolocation" that selects the
-best source, or leave the fusion to downstream consumers querying the individual
-properties. This is a design question for implementation.
+Each of these sources has different precision, freshness, and availability. Note
+that sources 2 and 3 come from the network tap, not from the scooter's telemetry;
+they have independent refresh rates and retention semantics. The platform could
+maintain a composite "best available geolocation" that selects the best source, or
+leave the fusion to downstream consumers querying the individual properties. This
+is a design question for implementation.
 
 ### How to Provide Last Reported Values
 
