@@ -255,13 +255,27 @@ wider network: the interface through which data reaches the operator's backend.
 Its internal structure varies by connectivity type:
 
 - **Cellular** (`"cellular"`): the built-in modem. The scooter's software can
-  always read the modem's IP address from the OS network stack. The IMEI and IMSI
-  may be available if the firmware queries the modem via standard AT commands
-  (`AT+CGSN`, `AT+CIMI`); many embedded platforms expose this unprivileged, but
-  it is not guaranteed. eSIM-level identifiers (EID, ICCID) are generally not
-  accessible through the AT interface. The software has no access to radio-level
-  data (serving cell, signal quality, neighbor cells); that information exists
-  only on the network side.
+  always read the modem's IP address from the OS network stack. Beyond the IP,
+  3GPP TS 27.007 standardizes a set of AT commands that the firmware can use to
+  query the modem, though not every modem or firmware implements the full spec:
+
+  | AT Command | Data | Notes |
+  |------------|------|-------|
+  | `AT+CGSN` | IMEI | Modem hardware identity |
+  | `AT+CIMI` | IMSI | Subscriber identity from the active profile |
+  | `AT+COPS` | Registered operator (PLMN) | Operator name or MCC-MNC |
+  | `AT+CREG` / `AT+CEREG` | Registration status | Whether the modem is registered, roaming, or searching |
+  | `AT+CGDCONT` | APN / PDP context | Data session configuration |
+  | `AT+CGATT` | Attach status | Whether the modem is attached to packet services |
+  | `AT+CGMI`, `AT+CGMM`, `AT+CGMR` | Modem manufacturer, model, firmware | Hardware and software identification of the modem itself |
+
+  All of these are best-effort from the telemetry perspective: the firmware may
+  not query them, the modem may not implement them fully, and the values may lag
+  behind the network's own view of the same session. eSIM-level identifiers (EID,
+  ICCID) are generally not accessible through the standard AT interface. Signal
+  quality metrics (RSRP, RSRQ), neighbor cell measurements, and handover events
+  are not available through standard commands; that information exists only on the
+  network side.
 - **Bluetooth** (`"bluetooth"`): the rider's phone acting as a relay. Identified
   by the phone's BLE device name (the Local Name advertised during pairing).
 - **Station** (`"station"`): a fixed infrastructure access point, typically WiFi
