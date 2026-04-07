@@ -639,6 +639,33 @@ shared across brands. Classifiers are imperfect and versioned: today's
 accuracy characteristics. The domain model holds all perspectives simultaneously
 rather than forcing premature resolution.
 
+## Overlapping Observations
+
+A digital twin system observes the same physical entities from multiple
+independent vantage points. The scooter's IP address appears in two places:
+the OS network stack (telemetry) and the network tap (signaling). The modem's
+IMEI is reported by AT commands in the telemetry payload and observed directly
+by the network tap. The battery serial comes from the BMS chip via telemetry
+and from the operator's asset database via the vendor instrument.
+
+This overlap is not redundant; it is the system's primary source of insight.
+When independent observations agree, the agreement is a positive reinforcement
+signal: the system's model of the world is consistent. When they disagree, the
+discrepancy is equally valuable. An IP mismatch between telemetry and the
+network tap may indicate a stale session, a NAT traversal, or a
+miscorrelation. A battery serial that the telemetry reports but the vendor
+instrument does not recognize may indicate an unregistered replacement part.
+
+Higher-order mechanisms built on top of the digital twin (anomaly detection,
+compliance auditing, fleet analytics) consume these signals. The twin itself
+does not resolve them; it holds all observations faithfully and lets downstream
+consumers decide what the disagreement means. This is why the domain model
+maintains separate entities for each observation perspective (Modem from the
+network tap, Vehicle from telemetry, classifications from automated
+classifiers) rather than merging them into a single canonical record. The
+separation preserves the provenance that makes corroboration and conflict
+detection possible.
+
 ## Variance
 
 The scooter domain has many axes of variation, and the platform must handle them
