@@ -790,3 +790,30 @@ Note that the Modem and Vehicle are observed through independent channels
 (network layer vs application layer). For cellular-connected scooters, both
 characters are present and correlated. For phone-bridged scooters, the Vehicle
 may exist without a stable Modem anchor.
+
+## Appendix: Stakeholders
+
+A _stakeholder_ here follows the INCOSE sense: any party with an interest,
+claim, or concern that affects, or is affected by, the observation platform.
+Stakeholders sit outside the platform's data boundary, distinct from the
+entities the platform models (see [Characters](#characters)). The table below
+names the parties whose decisions, expectations, or constraints shape the domain
+model and the observability concerns it must satisfy.
+
+| Stakeholder                       | Role in the world                                                                                                     | Stake in the platform                                                                                                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **Platform consumer**             | Analytics and operations teams that query the digital twin (anomaly detection, fleet health, compliance reporting)    | Accurate, fresh, well-attributed observations across the full fleet, with provenance preserved across instruments      |
+| **Platform operator**             | The team running the observation platform itself                                                                      | System reliability; clean ingestion from each instrument; low-friction onboarding of new operators and new classifiers |
+| **Fleet operator**                | Companies operating the scooters (Lime, Bird, Dot, others); supply provisioning data and (in some setups) telemetry   | A view of their fleet that is consistent with their own asset registry; classifications that do not misattribute units |
+| **Mobile network operator**       | Cellular carrier providing connectivity; hosts or grants access to the network tap                                    | Network capacity planning, IoT subscription accounting, integrity of signaling-derived observations                    |
+| **eSIM management provider**      | Issues and remotely provisions eSIM profiles onto eUICCs                                                              | Profile lifecycle visibility (ICCID/IMSI assignment events) so platform consumers can attribute observed identity flux |
+| **Rider**                         | End-user who unlocks and rides scooters                                                                               | Service availability; minimal retention of personal-location data beyond what safety and dispute resolution require    |
+| **Field technician**              | Operator-employed workers who swap batteries, relocate scooters, and perform maintenance ("juicers", "chargers")      | Fresh last-known-good location and battery state to plan retrieval routes                                              |
+| **City / municipal regulator**    | Local authority setting deployment, parking, and geofencing rules                                                     | Verifiable compliance reports; aggregate fleet behavior summaries; auditability                                        |
+| **Hardware manufacturer**         | Builders of scooters, modems, and firmware (e.g. Segway, Quectel, Sierra Wireless)                                    | Classifier accuracy on hardware identity; visibility into firmware-version-specific behavior surfaced by the platform  |
+| **Data protection authority**     | Regulator enforcing privacy law over geolocation and subscriber data                                                  | Provenance, retention, and minimization controls over personal data flowing through the platform                       |
+| **Standards bodies (3GPP, GSMA)** | Define the protocols and identifiers (IMEI, IMSI, AT command suite, eSIM management) the platform observes and parses | Faithful interpretation of standardized identifiers and procedures; the platform must not silently drift from the spec |
+
+Stakeholders are not modeled as entities in the digital twin; their concerns
+inform what gets modeled, what gets retained, and which cross-instrument
+correlations the platform invests in.
