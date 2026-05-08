@@ -73,6 +73,15 @@ const (
 //
 // The Type field selects the variant; fields belonging to other variants are
 // at their zero values.
+//
+// IP is a deliberate simplification. A real cellular session may carry
+// multiple addresses at once: an IPv4 and an IPv6 from a dual-stack PDP
+// context, or several IPs across multiple PDP contexts (e.g. a fleet-side
+// management APN alongside a payload APN). Modeling all of them would
+// require a slice and a way to attribute each address to its PDP context.
+// This sample keeps a single primary IP because the narrative does not
+// exercise multi-context scenarios; a production model would lift this
+// restriction.
 type Access struct {
 	Type  string     // Connectivity variant: "cellular", "bluetooth", or "station".
 	IP    netip.Addr // Cellular: current data-session IP from the OS network stack.
