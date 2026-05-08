@@ -228,28 +228,32 @@ generation, but the general patterns are consistent across the industry.
 Each telemetry report carries a common envelope and a set of sensor readings.
 The fields below use standard abbreviations from IoT and vehicle telematics:
 
-| Field                  | Type     | Description                                           |
-| ---------------------- | -------- | ----------------------------------------------------- |
-| `device_id`            | string   | Scooter identity (VIN or operator-assigned fleet ID)  |
-| `ts`                   | ISO 8601 | Timestamp at the scooter's clock                      |
-| `seq`                  | uint32   | Monotonic sequence number; gaps reveal lost reports   |
-| `trigger`              | string   | Why this report was sent (see [Triggers](#triggers))  |
-| `gnss.lat`, `gnss.lng` | float64  | WGS 84 coordinates                                    |
-| `gnss.alt`             | float64  | Altitude in meters above sea level                    |
-| `gnss.hdop`            | float64  | Horizontal dilution of precision (lower is better)    |
-| `gnss.sats`            | uint8    | Satellites used in the fix                            |
-| `gnss.fix`             | string   | Fix quality: `"none"`, `"2d"`, `"3d"`                 |
-| `speed`                | float64  | Ground speed in km/h (GNSS-derived)                   |
-| `heading`              | float64  | Course over ground in degrees, 0–360                  |
-| `battery.id`           | string   | BMS-reported serial number of the installed pack      |
-| `battery.soc`          | float64  | State of charge, 0.0–1.0                              |
-| `battery.voltage`      | float64  | Pack voltage in volts                                 |
-| `battery.temp`         | int      | Cell temperature in °C                                |
-| `battery.cycles`       | uint32   | Lifetime charge cycle count                           |
-| `odometer`             | float64  | Cumulative trip distance in km                        |
-| `access`               | object   | Current point of attachment (see below)               |
-| `accel.motion`         | bool     | Accelerometer motion detection flag                   |
-| `accel.tilt`           | float64  | Tilt angle in degrees (0 = upright, 90 = on its side) |
+| Field                   | Type     | Description                                                                   |
+| ----------------------- | -------- | ----------------------------------------------------------------------------- |
+| `device_id`             | string   | Scooter identity (VIN or operator-assigned fleet ID)                          |
+| `ts`                    | ISO 8601 | Timestamp at the scooter's clock                                              |
+| `seq`                   | uint32   | Monotonic sequence number; gaps reveal lost reports                           |
+| `trigger`               | string   | Why this report was sent (see [Triggers](#triggers))                          |
+| `gnss.lat`, `gnss.lng`  | float64  | WGS 84 coordinates                                                            |
+| `gnss.alt`              | float64  | Altitude in meters above sea level                                            |
+| `gnss.hdop`             | float64  | Horizontal dilution of precision (lower is better)                            |
+| `gnss.sats`             | uint8    | Satellites used in the fix                                                    |
+| `gnss.fix`              | string   | Fix quality: `"none"`, `"2d"`, `"3d"`                                         |
+| `speed`                 | float64  | Ground speed in km/h (GNSS-derived)                                           |
+| `heading`               | float64  | Course over ground in degrees, 0–360                                          |
+| `battery.id`            | string   | BMS-reported serial number of the installed pack                              |
+| `battery.soc`           | float64  | State of charge, 0.0–1.0                                                      |
+| `battery.voltage`       | float64  | Pack voltage in volts                                                         |
+| `battery.design_energy` | uint32   | Design full-charge energy when new, in mWh (factory rating)                   |
+| `battery.full_energy`   | uint32   | Latest measured full-charge capacity, in mWh (degrades with cycles)           |
+| `battery.energy`        | uint32   | Current stored energy, in mWh                                                 |
+| `battery.power`         | int      | Instantaneous power flow in mW (positive while charging, negative under load) |
+| `battery.temp`          | int      | Cell temperature in °C                                                        |
+| `battery.cycles`        | uint32   | Lifetime charge cycle count                                                   |
+| `odometer`              | float64  | Cumulative trip distance in km                                                |
+| `access`                | object   | Current point of attachment (see below)                                       |
+| `accel.motion`          | bool     | Accelerometer motion detection flag                                           |
+| `accel.tilt`            | float64  | Tilt angle in degrees (0 = upright, 90 = on its side)                         |
 
 The `access` field describes the scooter's current **point of attachment** to
 the wider network: the interface through which data reaches the operator's
@@ -292,6 +296,15 @@ pairs, docking station connects), a dedicated trigger fires (see
 Not every field is present in every report. The scooter's software omits fields
 it cannot populate (e.g., `gnss.*` when there is no satellite fix, `access` on
 scooters with no active connectivity metadata).
+
+The battery sub-fields are partially redundant: `battery.energy` divided by
+`battery.full_energy` is the state of charge, and `battery.full_energy` trends
+down from `battery.design_energy` over the pack's life as cycles accumulate.
+Real BMSs expose different subsets of these readings: some surface only a
+percentage, others publish the underlying energies and an instantaneous
+`battery.power`. The digested domain model holds a single normalized state of
+charge derived from whichever measurements the instrument provides; the raw
+fields stay in the analytics tier for downstream battery health analysis.
 
 The `device_id` is the application-layer identity of the scooter. It is
 independent of the IMEI: the IMEI belongs to the modem at the network layer,
