@@ -357,6 +357,75 @@ replacement).
 ·      ·    ·    ·    ·  · · · · ·  · · · · ·  · · · · ·   · ·  ·  ·     ·
 ```
 
+## Systems
+
+The following diagram fixes the systems referenced throughout the narrative.
+Solid arrows are continuous flows (telemetry, signaling, registry records);
+dashed arrows are intermittent paths (BLE relay, WiFi at docks) or out-of-band
+provisioning events (eSIM profile pushes).
+
+```mermaid
+flowchart LR
+    subgraph Scooter
+        FW["Firmware / control board"]
+        GNSS["GNSS receiver"]
+        Accel[Accelerometer]
+        BMS[BMS chip]
+        Battery["Swappable pack"]
+        Modem["Cellular modem + eUICC"]
+        FW --- GNSS
+        FW --- Accel
+        FW --- BMS
+        FW --- Modem
+        BMS --- Battery
+    end
+
+    subgraph Cellular["Cellular network"]
+        RAN["Base stations / RAN"]
+        Core["Packet core"]
+        eSIM["eSIM management"]
+    end
+
+    Phone["Rider phone (BLE)"]
+    Dock["Docking station (WiFi)"]
+
+    subgraph Backend["Operator backend"]
+        Provisioning["Provisioning registry"]
+        Ingest["Telemetry ingestion"]
+    end
+
+    subgraph Platform["Observation platform"]
+        VI["Vendor instrument"]
+        NT["Network tap"]
+        TF["Telemetry feed"]
+        Twin["Digital twin"]
+        Analytics["Silver / gold tiers"]
+        VI --> Twin
+        NT --> Twin
+        TF --> Twin
+        Twin --> Analytics
+    end
+
+    Modem ==> RAN
+    RAN ==> Core
+    Core ==> Ingest
+    FW -. BLE .-> Phone
+    Phone ==> Ingest
+    FW -. WiFi .-> Dock
+    Dock ==> Ingest
+    eSIM -. profile push .-> Modem
+
+    Provisioning --> VI
+    Core --> NT
+    Ingest --> TF
+```
+
+The platform is the rightmost grouping; everything to its left is a source it
+observes. Each instrument is anchored on a different identifier (VIN for the
+vendor instrument, IMEI for the network tap, `device_id` for the telemetry
+feed), and the digital twin is where those independent observations are
+correlated.
+
 ## A Scooter's Day
 
 The following traces one cellular-connected scooter through a full day. This is
