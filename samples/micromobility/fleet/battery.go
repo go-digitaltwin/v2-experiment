@@ -9,6 +9,11 @@ package fleet
 // BMS readings in each scooter's telemetry payload. A battery-swap event
 // manifests as a sudden change in the reported serial number.
 //
+// This is the digested twin state: a single normalized state of charge plus
+// the readings the twin needs. The raw BMS sub-object (the external
+// telemetry.Battery) is wider, carrying the redundant design, full, and
+// instantaneous energies that downstream battery-health analysis consumes.
+//
 // The Vehicle→Battery relationship is maintained on [Vehicle] (BatterySerial),
 // not here. If a reverse link (Battery→Vehicle) is ever needed, it will be
 // added as a field with supporting causality mechanisms to keep both sides
