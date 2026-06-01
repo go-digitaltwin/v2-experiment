@@ -302,15 +302,49 @@ The battery sub-fields are partially redundant: `battery.energy` divided by
 down from `battery.design_energy` over the pack's life as cycles accumulate.
 Real BMSs expose different subsets of these readings: some surface only a
 percentage, others publish the underlying energies and an instantaneous
-`battery.power`. The digested domain model holds a single normalized state of
-charge derived from whichever measurements the instrument provides; the raw
-fields stay in the analytics tier for downstream battery health analysis.
+`battery.power`. The digested domain model (`fleet.Battery`) holds a single
+normalized state of charge derived from whichever measurements the instrument
+provides; the raw fields stay in the external `telemetry.Battery`, available to
+the analytics tier for downstream battery health analysis.
 
 The `device_id` is the application-layer identity of the scooter. It is
 independent of the IMEI: the IMEI belongs to the modem at the network layer,
 while the `device_id` belongs to the scooter's software at the application
 layer. The platform correlates the two by observing which `device_id` payloads
 flow through which IMEI's IP session.
+
+### External Payload, Digested Twin
+
+The payload above has two representations in the model, at two altitudes:
+
+- **External.** The raw report, captured as it crosses into the platform from
+  the outside, in `telemetry.Report`. It keeps the full envelope (`seq`, `ts`,
+  `trigger`), the redundant battery energies, and the self-reported network
+  identity in `telemetry.Access`, exactly as the source delivered them. Nothing
+  is discarded; the report is retained for battery-health analysis,
+  corroboration against the network tap, and replay.
+- **Digested twin.** The live domain state derived from those reports:
+  `fleet.Vehicle`, `fleet.Battery`, and the network-tap-correlated
+  `radio.Modem`. The digest normalizes and drops. The battery's raw energies
+  collapse to a single state of charge. The envelope falls away, because state
+  carries no record of _why_ it was reported. The self-reported `access` reduces
+  to `fleet.Attachment`: the connectivity mode plus the anchors the telemetry
+  uniquely provides (the phone's BLE name, the dock id). The cellular network
+  identity is _not_ copied onto the vehicle; it belongs to `radio.Modem`,
+  reached through the vehicle's `ModemIMEI`, whose network-tap view is
+  authoritative.
+
+The two layers also key differently. A report is keyed on `device_id`, the
+firmware's self-assigned identity (a VIN or an operator-assigned fleet id). The
+twin is keyed on the resolved VIN. Bridging the two is an identity-resolution
+step performed during digestion, using the vendor instrument.
+
+This sample models the telemetry feed's external layer in full because it is the
+richest source and the one with the widest gap between raw and digested. The
+network tap and the vendor instrument feed the twin through the same
+source-to-digest pattern, but their raw layers are not expanded here: a network
+tap's observation is already close to the modem state it produces, leaving
+little to digest.
 
 ### Triggers
 

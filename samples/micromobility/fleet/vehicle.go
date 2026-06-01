@@ -6,9 +6,13 @@
 // whatever network interface is available. The observation platform learns
 // about vehicles from the telemetry payloads they emit, not from operator
 // fleet management systems.
+//
+// The types here are the digested twin state. The raw payloads they are
+// derived from arrive from outside the platform and live in the external
+// telemetry package as telemetry.Report; the digest normalizes those reports
+// into the state the twin needs and drops the envelope and redundant readings
+// the twin does not.
 package fleet
-
-import "net/netip"
 
 // Vehicle is an electric scooter identified by its frame-stamped VIN.
 //
@@ -18,17 +22,17 @@ import "net/netip"
 // telemetry goes silent beyond a configured TTL; stable associations persist
 // as historical record.
 type Vehicle struct {
-	VIN           string  // Primary key. Frame identity stamped at manufacture.
-	ModemIMEI     string  // Foreign key → [radio.Modem]. Which cellular modem is installed.
-	BatterySerial string  // Foreign key → [Battery]. Which battery pack is installed.
-	Speed         float64 // Ground speed in km/h, derived from GNSS.
-	Heading       float64 // Course over ground in degrees, 0-360.
-	GNSS          GNSS    // Satellite fix from the scooter's GPS receiver.
-	InRide        bool    // Whether a ride is in progress (platform-inferred from telemetry pattern).
-	Odometer      float64 // Cumulative trip distance in km.
-	AccelMotion   bool    // Accelerometer motion-detection flag.
-	AccelTilt     float64 // Tilt angle in degrees (0 = upright, 90 = on its side).
-	Access        Access  // Current point of attachment to the wider network.
+	VIN           string     // Primary key. Frame identity stamped at manufacture.
+	ModemIMEI     string     // Foreign key → [radio.Modem]. Which cellular modem is installed.
+	BatterySerial string     // Foreign key → [Battery]. Which battery pack is installed.
+	Speed         float64    // Ground speed in km/h, derived from GNSS.
+	Heading       float64    // Course over ground in degrees, 0-360.
+	GNSS          GNSS       // Satellite fix from the scooter's GPS receiver.
+	InRide        bool       // Whether a ride is in progress (platform-inferred from telemetry pattern).
+	Odometer      float64    // Cumulative trip distance in km.
+	AccelMotion   bool       // Accelerometer motion-detection flag.
+	AccelTilt     float64    // Tilt angle in degrees (0 = upright, 90 = on its side).
+	Attachment    Attachment // Current point of attachment, digested from telemetry.
 }
 
 // GNSS holds a satellite fix from the scooter's GPS receiver.
@@ -52,48 +56,34 @@ const (
 	Fix3D   = "3d"
 )
 
-// Access describes a scooter's current point of attachment to the wider
-// network: the interface through which telemetry reaches the operator's
-// backend.
+// Attachment is the digested point of attachment: how the scooter is currently
+// reaching the backend. It is derived from the telemetry feed's raw access
+// sub-object (telemetry.Access), reduced to twin state.
 //
-// These fields are self-reported by the scooter's application software:
-// the IP is read from the OS network stack, and the modem identifiers are
-// queried via the AT command interface when the firmware supports it.
-// Access values are confirmatory, not authoritative: the network tap's
-// view of the same modem ([radio.Modem]) is the source of truth for
-// network-layer identity. The two observations arrive through independent
-// channels and may disagree temporarily (e.g., after an IP change that the
-// network tap sees before the next telemetry beacon).
+// Only the mode and the application-unique anchors live here. For [AttachCellular],
+// the network identity (IP, IMEI, IMSI) is not duplicated onto the vehicle: it
+// belongs to the modem and is reached through [Vehicle.ModemIMEI] → [radio.Modem],
+// whose network-tap view is authoritative. The telemetry's self-reported copy of
+// that identity stays in the external telemetry layer for corroboration against the tap.
+// [AttachBluetooth] and [AttachStation] carry anchors the network tap never sees
+// (the phone's BLE name, the dock id), so the telemetry feed is their only source.
 //
-// The connectivity model varies by operator and hardware generation. A
-// scooter with a built-in cellular modem maintains a persistent data session
-// even when idle; a phone-bridged scooter communicates only during rides
-// through the rider's phone; a docked scooter uploads buffered telemetry
-// over station WiFi.
+// The connectivity model varies by operator and hardware generation. A scooter
+// with a built-in cellular modem maintains a persistent data session even when
+// idle; a phone-bridged scooter communicates only during rides through the
+// rider's phone; a docked scooter uploads buffered telemetry over station WiFi.
 //
-// The Type field selects the variant; fields belonging to other variants are
-// at their zero values.
-//
-// IP is a deliberate simplification. A real cellular session may carry
-// multiple addresses at once: an IPv4 and an IPv6 from a dual-stack PDP
-// context, or several IPs across multiple PDP contexts (e.g. a fleet-side
-// management APN alongside a payload APN). Modeling all of them would
-// require a slice and a way to attribute each address to its PDP context.
-// This sample keeps a single primary IP because the narrative does not
-// exercise multi-context scenarios; a production model would lift this
-// restriction.
-type Access struct {
-	Type  string     // Connectivity variant: "cellular", "bluetooth", or "station".
-	IP    netip.Addr // Cellular: current data-session IP from the OS network stack.
-	IMEI  string     // Cellular: modem IMEI, if the firmware queries the AT interface.
-	IMSI  string     // Cellular: subscriber identity, if available via AT+CIMI or equivalent.
-	BLE   string     // Bluetooth: rider's phone BLE device name (Local Name).
-	BSSID string     // Station: WiFi BSSID or operator-assigned dock ID.
+// Mode selects the variant; fields belonging to other variants are at their
+// zero values.
+type Attachment struct {
+	Mode   string // Connectivity variant: "cellular", "bluetooth", or "station".
+	BLE    string // Bluetooth: rider's phone BLE device name (Local Name).
+	DockID string // Station: WiFi BSSID or operator-assigned dock ID.
 }
 
-// Access type constants for [Access.Type].
+// Attachment mode constants for [Attachment.Mode].
 const (
-	AccessCellular  = "cellular"
-	AccessBluetooth = "bluetooth"
-	AccessStation   = "station"
+	AttachCellular  = "cellular"
+	AttachBluetooth = "bluetooth"
+	AttachStation   = "station"
 )
