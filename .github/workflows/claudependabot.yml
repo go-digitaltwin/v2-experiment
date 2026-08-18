@@ -61,6 +61,7 @@ jobs:
 
       - name: Approve patch
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        continue-on-error: true # Gracefully handle repos where Actions PR approval is disabled
         run: gh pr review --approve -b "Patch update — auto-approved" "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
