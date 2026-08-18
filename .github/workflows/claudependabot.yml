@@ -67,7 +67,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout for review
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # The review job grants no write scopes to contents, but
           # persist-credentials: false ensures the Claude agent cannot
